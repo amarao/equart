@@ -36,8 +36,8 @@ fn conv(i: i32, j:i32) -> Pixel {
 fn within<F>(pixel:Pixel, eq: F) -> bool where
     F: Fn(f64, f64) -> f64
 {
-    let v1 = eq(pixel.x, pixel.y);
-    if v1.abs() < (pixel.dx.abs()).min(pixel.dy.abs()){
+    let v1 = eq(pixel.x + pixel.dx/2.0, pixel.y + pixel.dy/2.0);
+    if v1.abs() < ((pixel.dx/2.0).abs()).min((pixel.dy/2.0).abs()){
         return true
     }
     // let v2 = eq(pixel.x+pixel.dx, pixel.y);
@@ -51,7 +51,7 @@ fn within<F>(pixel:Pixel, eq: F) -> bool where
 
 fn main() {
     let mut turtle = Turtle::new();
-    let eq = |x, y| x*x + y*y - 1.0;
+    let eq = |x:f64, y:f64| x.sin() - y;
     turtle.drawing_mut().set_size((DRAW_X+50, DRAW_Y+50));
     turtle.set_speed("instant");
     for i in -(DRAW_X as i32)/2..(DRAW_X as i32)/2 {
