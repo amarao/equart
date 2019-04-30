@@ -18,11 +18,34 @@ impl Point for Turtle {
 }
 
 
+struct Canvas {
+    canvas: Vec<u8>,
+    pix_dim_x: usize,
+    pix_dim_y: usize,
+    real_size_x: f64,
+    real_size_y: f64,
+    //real_min_x: f64, //offset
+    //real_min_y: f64,
+    lattice_dim: usize,
+}
+
+impl Canvas{
+    fn new(pix_dim_x: usize, pix_dim_y: usize, real_size_x: f64, real_size_y: f64, lattice_dim: usize) -> Canvas {
+        let canv = Vec::with_capacity(pix_dim_x * pix_dim_y);
+        Canvas{canvas: canv, pix_dim_x: pix_dim_x, pix_dim_y: pix_dim_y, real_size_x: real_size_x, real_size_y: real_size_y, lattice_dim:lattice_dim}
+    }
+    fn dot(&self, i:usize, j:usize){
+        self.canv[]
+    }
+}
+
+
+
 const DRAW_X: u32 = 1920;
 const DRAW_Y: u32 = 1080;
-
-const FUNC_X: f64 = 1.92*2.0;
-const FUNC_Y: f64 = 1.08*2.0;
+const ZOOM: f64 = 25.0;
+const FUNC_X: f64 = 1.92*ZOOM;
+const FUNC_Y: f64 = 1.08*ZOOM;
 
 
 struct Pixel{x:f64, y:f64, dx:f64, dy:f64}
@@ -59,9 +82,12 @@ fn sign_change_on_lattice<F> (pixel:Pixel, func: F, dim: u8) -> bool where
 fn main() {
     let mut turtle = Turtle::new();
     // let eq = |x:f64, y:f64| x.sin() - y;
-    let eq = |x:f64, y:f64| (1.0/x).sin() - y;
+    // let eq = |x:f64, y:f64| (1.0/x).sin() - y;
     //let eq = |x:f64, y:f64| x*x + y*y - 3.0;
-    turtle.drawing_mut().set_size((DRAW_X+50, DRAW_Y+50));
+    // let eq = |x:f64, y:f64| x.sin() - y.cos() + 2.0*x.sin()*y.sin();
+    // let eq = |x:f64, y:f64| x.sin() - y.cos() - 2.0*x.sin()/y.sin();
+    let eq = |x:f64, y:f64| (x*x).sin() - (y*y).cos();
+    turtle.drawing_mut().set_size((DRAW_X, DRAW_Y));
     turtle.hide();
     turtle.set_pen_size(1.0);
     turtle.set_speed("instant");
