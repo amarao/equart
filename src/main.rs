@@ -21,8 +21,8 @@ impl Point for Turtle {
 const DRAW_X: u32 = 1920;
 const DRAW_Y: u32 = 1080;
 
-const FUNC_X: f64 = 0.0192;
-const FUNC_Y: f64 = 2.2;
+const FUNC_X: f64 = 1.92*2.0;
+const FUNC_Y: f64 = 1.08*2.0;
 
 
 struct Pixel{x:f64, y:f64, dx:f64, dy:f64}
@@ -44,6 +44,7 @@ fn sign_change_on_lattice<F> (pixel:Pixel, func: F, dim: u8) -> bool where
             let x = pixel.x+pixel.dx/((dim - 1) as f64)*(i as f64);
             let y = pixel.y+pixel.dy/((dim - 1) as f64)*(j as f64);
             let res = func(x,y);
+            if !res.is_finite() {continue};
             let num_sign:bool = res.signum() > 0.0;
             sign = match sign {
                 None => {Some(num_sign)},
