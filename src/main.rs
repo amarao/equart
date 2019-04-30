@@ -36,11 +36,23 @@ fn conv(i: i32, j:i32) -> Pixel {
 fn float_minmax<'a, T>(seq: T) -> (f64, f64) where
     T: Iterator<Item=&'a f64> + Clone
 {
-    let min:f64 = *(seq.clone().min_by(|a:&&f64, b:&&f64| (**a).partial_cmp(*b).unwrap()).unwrap());
-    let max:f64 = *(seq.clone().max_by(|a:&&f64, b:&&f64| (**a).partial_cmp(*b).unwrap()).unwrap());
+    let mut min: Option<f64> = None;
+    let mut max: Option<f64> = None;
+    for &num in seq {
+        min = match min {
+            Some(val) if val > num => {Some(num)},
+            Some(val) => {Some(val)},
+            None => {Some(num)},
+        };
+        max = match max {
+            Some(val) if val < num => {Some(num)},
+            Some(val) => {Some(val)},
+            None => {Some(num)},
+        }
+    }
     //let max:f64 = seq.max_by(|a:&f64, b:&f64| (*a).partial_cmp(b).unwrap()).unwrap();
     // println!("{}, {}", min, max);
-    (min, max)
+    (min.unwrap(), max.unwrap())
 }
 
 fn sign_change<'a, T>(points: T) -> bool where
@@ -81,5 +93,19 @@ fn main() {
                 turtle.point(i as f64, j as f64);
             }
         }
+    }
+}
+#[cfg(test)]
+mod tests{
+    use super::float_minmax;
+    #[test]
+    fn test_float_minmax_2(){
+        let data = [2.0, 2.0, 2.0, 2.0];
+        assert_eq!(float_minmax(data.iter()), (2.0, 2.0))
+    }
+    #[test]
+    fn test_float_minmax_diff(){
+        let data = [-2.0, 2.0, 4.0, 2.0];
+        assert_eq!(float_minmax(data.iter()), (-2.0, 4.0))
     }
 }
