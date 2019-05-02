@@ -22,10 +22,15 @@ impl Point for Turtle {
 
 struct Canvas {
     img: ImgVec<u32>,
+    // values: ImgVec<f64>,
     pix_dim_x: usize,
+    subpixel_dim_x: usize,
     pix_dim_y: usize,
+    subpixel_dim_y: usize,
     real_size_x: f64,
     real_size_y: f64,
+    pixel_size_x: f64,
+    pixel_size_y: f64,
     //real_min_x: f64, //offset
     //real_min_y: f64,
     lattice_dim: usize,
@@ -33,12 +38,31 @@ struct Canvas {
 
 impl Canvas{
     fn new(pix_dim_x: usize, pix_dim_y: usize, real_size_x: f64, real_size_y: f64, lattice_dim: usize) -> Canvas {
-        let img: ImgVec<u32> = ImgVec::new(vec![pix_dim_x as u32 * pix_dim_y as u32;0], pix_dim_x, pix_dim_y);
-        Canvas{img: img, pix_dim_x: pix_dim_x, pix_dim_y: pix_dim_y, real_size_x: real_size_x, real_size_y: real_size_y, lattice_dim:lattice_dim}
+        let subpixel_dim_x = pix_dim_x * lattice_dim;
+        let subpixel_dim_y = pix_dim_y * lattice_dim;
+        println!("{}", pix_dim_x as u32 * pix_dim_y as u32);
+        let cnv = Canvas{
+                img: ImgVec::new(vec![0xFFFF_FFFF;(pix_dim_x as u32 * pix_dim_y as u32) as usize], pix_dim_x, pix_dim_y),
+                // values: ImgVec::new(vec![subpixel_dim_x as u32 * subpixel_dim_y as u32;NaN], subpixel_dim_x, subpixel_dim_y),
+                pix_dim_x: pix_dim_x,
+                subpixel_dim_x: subpixel_dim_x,
+                pix_dim_y: pix_dim_y,
+                subpixel_dim_y: subpixel_dim_y,
+                real_size_x: real_size_x,
+                real_size_y: real_size_y,
+                pixel_size_x: real_size_x/(pix_dim_x as f64),
+                pixel_size_y: real_size_y/(pix_dim_y as f64),
+                lattice_dim:lattice_dim,
+        };
+        println!("alloc");
+        cnv
     }
-    // fn dot(&self, i:usize, j:usize){
-    //
-    // }
+    fn dot(&mut self, i:usize, j:usize, color:u32){
+        self.img[(i, j)] = color;
+    }
+    fn is_color_match(&self, i:usize, j:usize, color:u32) -> bool{
+        self.img[(i, j)] == color
+    }
 }
 
 
@@ -84,7 +108,9 @@ const FUNC_Y: f64 = 1.08*PAN;
 
 
 fn main() {
+    let lattice_size = 7u8;
     let mut turtle = Turtle::new();
+    let mut canvas = Canvas::new(DRAW_X as usize, DRAW_Y as usize, FUNC_X, FUNC_Y, lattice_size as usize);
     //let eq = |x:f64, y:f64| x.sin() - y;
     // let eq = |x:f64, y:f64| (1.0/x).sin() - y;
     //let eq = |x:f64, y:f64| x*x + y*y - 3.0;
@@ -100,14 +126,22 @@ fn main() {
     turtle.hide();
     turtle.set_pen_size(1.0);
     turtle.set_speed("instant");
-    for lattice_size in &[4u8]{
-        turtle.drawing_mut().set_title(&format!("lattice {}x{}",&lattice_size, &lattice_size));
-        for i in -(DRAW_X as i32)/2..(DRAW_X as i32)/2 {
-            for j in -(DRAW_Y as i32)/2..(DRAW_Y as i32)/2 {
-                let pixel = conv(i, j);
-                if sign_change_on_lattice(pixel, eq, *lattice_size){
-                    turtle.point(i as f64, j as f64);
-                }
+    let x_offset = (DRAW_X/2) as i32;
+    let y_offset = (DRAW_Y/2) as i32;
+    for i in -(DRAW_X as i32)/2..(DRAW_X as i32)/2 {
+        for j in -(DRAW_Y as i32)/2..(DRAW_Y as i32)/2 {
+            let pixel = conv(i, j);
+            if sign_change_on_lattice(pixel, eq, lattice_size){
+                //turtle.point(i as f64, j as f64);
+                canvas.dot((i+x_offset) as usize, (j+ y_offset) as usize, 0);
+            }
+        }
+    }
+    turtle.drawing_mut().set_title(&format!("lattice {}x{}",lattice_size, lattice_size));
+    for i in 0..DRAW_X{
+        for j in 0..DRAW_Y{
+            if canvas.is_color_match(i as usize, j as usize, 0){
+                turtle.point((i as i32 - x_offset) as f64, (j as i32 - y_offset) as f64);
             }
         }
     }
