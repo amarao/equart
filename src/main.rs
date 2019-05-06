@@ -21,10 +21,8 @@ use minifb::{Key, WindowOptions, Window};
 
 struct Pixel<'a>{
     value: &'a u32,
-    x:f64, //Cartesian coordinates
-    y:f64,
-    dx:f64, //Size of pixel in Cartesian
-    dy:f64
+    cartesian: (f64,f64), //Cartesian coordinates
+    size: (f64, f64)
 }
 
 struct Canvas {
@@ -56,6 +54,18 @@ impl Canvas{
                 lattice_dim:lattice_dim,
         };
         canvas
+    }
+    fn iter_mut(&mut self){
+        let calc = |i| {
+            let row = i/self.pixel_x  - self.zero_y;
+            let column = i % self.pixel_x - self.zero_x;
+            let y = (row as f64) * self.pixel_size_y;
+            let x = (column as f64) * self.pixel_size_y;
+            (x,y)
+        };
+        self.img.iter_mut().enumerate().map(
+            |value, i| Pixel{value, cartesian: calc(i), size: (self.pixel_size_x, self.pixel_size_y)}
+        )
     }
 
 }
