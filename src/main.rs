@@ -4,6 +4,12 @@ use itertools::Itertools;
 use std::time::{Duration, Instant};
 use std::thread::sleep;
 use minifb::{Key, WindowOptions, Window};
+fn sin(x:f64) ->f64 {
+    x.sin()
+}
+fn cos(x:f64) -> f64 {
+    x.cos()
+}
 
 // trait Point {
 //     fn point(&mut self, x:f64, y:f64);
@@ -134,14 +140,30 @@ fn show_and_wait(canvas:Canvas){
 
 
 fn main() {
+    // let picture = (
+    //     |x:f64, y:f64| x.sin()-y,
+    //     1.92*2.0,
+    //     1.08*2.0,
+    // );
+    // let picture = (
+    //     |x:f64 ,y:f64| (x*x).sin() - (y*y).cos(),
+    //     1.92*20.0,
+    //     1.08*20.0,
+    //     "circles"
+    // );
+    let picture = (
+        |x:f64, y:f64| sin(x)/sin(y)-cos(x*y),
+        1.92*64.0,
+        1.08*64.0,
+        "wiggle-squares"
+    );
     let mut canvas = Canvas::new(
         1920,1080,
-        1.92*2.0, 1.08*2.0,
-        1920/2, 1080/2, 2,
+        picture.1, picture.2,
+        1920/2, 1080/2, 9,
     );
-    let eq = |x:f64, y:f64| x.sin()-y;
     for pixel in canvas.iter_mut(){
-        if pixel.sign_change_on_lattice(eq){
+        if pixel.sign_change_on_lattice(picture.0){
             *pixel.value = 0;
         }
     }
