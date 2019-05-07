@@ -21,12 +21,13 @@ use minifb::{Key, WindowOptions, Window};
 // }
 
 struct Pixel<'a>{
-    value: &'a u32,
+    value: &'a mut u32,
     cartesian: (f64,f64), //Cartesian coordinates
     size: (f64, f64),
     lattice_dim: usize
 }
 impl<'a> Pixel<'a> {
+
     fn iterate_lattice(&self) -> impl Iterator<Item = (f64, f64)>{
         let x = self.cartesian.0;
         let y = self.cartesian.1;
@@ -36,6 +37,23 @@ impl<'a> Pixel<'a> {
         let conv = move |(i, j): (usize, usize)| (x+dx/(lattice - 1) as f64 * i as f64, y+dy/(lattice - 1) as f64 * j as f64);
         let new_it = (0..self.lattice_dim).cartesian_product(0..self.lattice_dim).map(conv);
         new_it
+    }
+
+    fn sign_change_on_lattice<F> (&self, func:F) -> bool where
+        F: Fn(f64, f64) -> f64
+    {
+        let mut sign: Option<bool> = None;
+        for (x,y) in self.iterate_lattice(){
+            let res = func(x,y);
+            if !res.is_finite() {continue};
+            let num_sign = res.signum() > 0.0;
+            sign = match sign {
+                None => {Some(num_sign)},
+                Some(old_sign) if old_sign != num_sign => { return true },
+                _ => {continue}
+            };
+        }
+        false
     }
 }
 
@@ -76,75 +94,59 @@ impl Canvas{
         let zero_x = self.zero_x;
         let zero_y = self.zero_y;
         let lattice_dim = self.lattice_dim;
+        println!("Start: {}, {}, {}", zero_x, zero_y, pixel_x);
         let calc = move |i| {
-            let row = i/pixel_x  - zero_y;
-            let column = i % pixel_x - zero_x;
+            // println!("pixel #{}", i);
+            let row = i as i64 / pixel_x as i64 - zero_y as i64;
+            // println!("Pixel row: {}, data: {}/{} - {}", row,i, pixel_x, zero_y);
+            let column = i as i64 %  pixel_x  as i64 - zero_x as i64;
+            // println!("Pixel row: {}, column: {}", row,column);
             let y = (row as f64) * pixel_size_y;
             let x = (column as f64) * pixel_size_y;
+            // println!("Pixel at {}, {}", x,y);
             (x,y)
         };
-        self.img.iter_mut().enumerate().map(
-            move |(i, value)| Pixel{value:value, cartesian: calc(i), size: (pixel_size_x, pixel_size_y), lattice_dim:lattice_dim}
+        (&mut self.img).iter_mut().enumerate().map(
+             move |(i, value)| Pixel{value, cartesian: calc(i), size: (pixel_size_x, pixel_size_y), lattice_dim}
+        //    move |(i, value)| Pixel{value, cartesian: (0.0, 0.0), size: (pixel_size_x, pixel_size_y), lattice_dim}
         )
     }
 
 }
 
-// fn sign_change_on_lattice<F> (pixel:&Pixel, func: F, dim: u8) -> bool where
-//     F: Fn(f64, f64) -> f64
-// {
-//     let mut sign: Option<bool> = None;
-//     for i in 0..dim {
-//         for j in 0..dim{
-//             let x = pixel.x+pixel.dx/((dim - 1) as f64)*(i as f64);
-//             let y = pixel.y+pixel.dy/((dim - 1) as f64)*(j as f64);
-//             let res = func(x,y);
-//             if !res.is_finite() {continue};
-//             let num_sign:bool = res.signum() > 0.0;
-//             sign = match sign {
-//                 None => {Some(num_sign)},
-//                 Some(old_sign) if old_sign != num_sign => { return true },
-//                 _ => {continue}
-//             };
-//         }
-//     }
-//     false
-// }
-//
-// const DRAW_X: u32 = 1920;
-// const DRAW_Y: u32 = 1080;
-// const PAN: f64 = 25.0;
-// const FUNC_X: f64 = 1.92*PAN;
-// const FUNC_Y: f64 = 1.08*PAN;
-//
-//
-//
-//
-//
-// fn show_and_wait(canvas:Canvas){ {
-//
-//     let mut window = Window::new("Test - ESC to exit",
-//                                  canvas.pix_dim_x,
-//                                  canvas.pix_dim_y,
-//                                  WindowOptions::default()
-//                                  ).unwrap();
-//
-//     std::thread::sleep(Duration::new(0,150_000_000));
-//     window.update_with_buffer(&canvas.img).unwrap();
-//
-//     while window.is_open() && !window.is_key_down(Key::Escape) {
-//         let start = Instant::now();
-//         window.update();
-//         let spend = start.elapsed();
-//         sleep(Duration::new(0,1000000000/60).checked_sub(spend).unwrap_or(Duration::new(0,0)));
-//     }
-// }
-//
-// }
-//
-// fn main() {
-//     let lattice_size = 9u8;
-//     let mut canvas = Canvas::new((DRAW_X as usize, DRAW_Y as usize), (FUNC_X, FUNC_Y), None, lattice_size as usize);
+fn show_and_wait(canvas:Canvas){
+    let mut window = Window::new("Test - ESC to exit",
+                                 canvas.pixel_x,
+                                 canvas.pixel_y,
+                                 WindowOptions::default()
+                                 ).unwrap();
+
+    std::thread::sleep(Duration::new(0,150_000_000));
+    window.update_with_buffer(&canvas.img).unwrap();
+
+    while window.is_open() && !window.is_key_down(Key::Escape) {
+        let start = Instant::now();
+        window.update();
+        let spend = start.elapsed();
+        sleep(Duration::new(0,1000000000/60).checked_sub(spend).unwrap_or(Duration::new(0,0)));
+    }
+}
+
+
+fn main() {
+    let mut canvas = Canvas::new(
+        1920,1080,
+        1.92*2.0, 1.08*2.0,
+        1920/2, 1080/2, 2,
+    );
+    let eq = |x:f64, y:f64| x.sin()-y;
+    for pixel in canvas.iter_mut(){
+        if pixel.sign_change_on_lattice(eq){
+            *pixel.value = 0;
+        }
+    }
+    show_and_wait(canvas);
+}
 //     let eq = |x:f64, y:f64| (x*x).sin() - (y*y).cos();
 //     // let x_offset = (DRAW_X/2) as i32;
 //     // let y_offset = (DRAW_Y/2) as i32;
@@ -198,13 +200,3 @@ impl Canvas{
 // //     println!("frame");
 // //     frame
 // // }
-
-fn main(){
-    let mut canvas=Canvas::new(2, 2, 1.0, 1.0, 0,0, 2);
-    for pixel in canvas.iter_mut(){
-        println!("Pixel {}, {} {}x{}", pixel.cartesian.0, pixel.cartesian.1, pixel.size.0, pixel.size.1);
-        for (x, y) in pixel.iterate_lattice(){
-            println!("{},{}", x, y);
-        }
-    }
-}
