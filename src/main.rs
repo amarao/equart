@@ -101,6 +101,7 @@ impl Canvas{
         let pixel_x = self.pixel_x;
         let pixel_size_x = self.pixel_size_x;
         let pixel_size_y = self.pixel_size_y;
+        println!("pixel size: {}x{}", pixel_size_x, pixel_size_y);
         let zero_x = self.zero_x;
         let zero_y = self.zero_y;
         let lattice_dim = self.lattice_dim;
@@ -108,7 +109,7 @@ impl Canvas{
             let row = i as i64 / pixel_x as i64 - zero_y as i64;
             let column = i as i64 %  pixel_x  as i64 - zero_x as i64;
             let y = (row as Float) * pixel_size_y;
-            let x = (column as Float) * pixel_size_y;
+            let x = (column as Float) * pixel_size_x;
             (x,y)
         };
         (&mut self.img).iter_mut().enumerate().map(
@@ -157,8 +158,9 @@ fn main() {
     //     "wiggle-squares"
     // );
     // let picture = (|x:Float, y:Float| sin(1.0/x)-sin(1.0/y), 1.92*5.0, 1.08/5.0, "curve in cross");
-    // let picture = (|x:Float, y:Float| sin(x)-cos(y)-sin(x/cos(y)), 1.92*9.0, 1.08*9.0, "curve in cross");
-    let picture = (|x:Float, y:Float| sin(x*x/y)-cos(y*y/x), 1.92*100.0, 1.08*100.0, "butterfly");
+    let picture = (|x:Float, y:Float| sin(x)-cos(y)-sin(x/cos(y)), 1.92*100.0, 1.08*11.8, "beads");
+    // let picture = (|x:Float, y:Float| sin(x*x/y)-cos(y*y/x), 1.92*100.0, 1.08*100.0, "butterfly");
+    // let picture = (|x:Float, y:Float| x-y, 300.0, 3.0, "butterfly");
     let mut canvas = Canvas::new(
         1920,1080,
         picture.1, picture.2,
@@ -173,56 +175,3 @@ fn main() {
     println!("Rendered in {:#?}", now.elapsed());
     show_and_wait(canvas);
 }
-//     let eq = |x:Float, y:Float| (x*x).sin() - (y*y).cos();
-//     // let x_offset = (DRAW_X/2) as i32;
-//     // let y_offset = (DRAW_Y/2) as i32;
-//     for pixel in canvas.into_iter(){
-//         let sign_change = sign_change_on_lattice(&pixel, eq, lattice_size);
-//             //turtle.point(i as Float, j as Float);
-//         //canvas.dot(&pixel, eq(pixel.x, pixel.y));
-//     }
-//     //canvas.finish();
-//     //show_and_wait(canvas);
-// }
-//
-//     //let mut turtle = Turtle::new();
-//     //let mut canvas = Canvas::new(DRAW_X as usize, DRAW_Y as usize, FUNC_X, FUNC_Y, lattice_size as usize);
-//
-//     //let eq = |x:Float, y:Float| x.sin() - y;
-//     // let eq = |x:Float, y:Float| (1.0/x).sin() - y;
-//     //let eq = |x:Float, y:Float| x*x + y*y - 3.0;
-//     // let eq = |x:Float, y:Float| x.sin() - y.cos() + 2.0*x.sin()*y.sin();
-//     //let eq = |x:Float, y:Float| x.sin() - y.cos() - 2.0*x.sin()/y.sin();
-//     // let eq = |x:Float, y:Float| x.sin() - y.cos() - 2.0*x.sin()/y.sin() + (2.0*x).cos();
-//     // let eq = |x:Float, y:Float| (x*x).sin() - (y*y).cos();
-//     // let eq = |x:Float, y:Float| (x/y).sin();
-//     //let eq = |x:Float, y:Float| (1.0/x+1.0/y).sin()+x.sin();
-//     //let eq = |x:Float, y:Float| x.sin()-y.cos()-2.0*(x.sin())/(y.sin())+(2.0cos(2x)
-//     // let eq = |x:Float, y:Float| x.sin()- 3.0*x.cos()*(y/100.0).sin() + y.sin() - (3.0*y).cos()*(x/100.0).sin();
-//     // let eq = |x:Float, y:Float| - x/y;
-//     // turtle.drawing_mut().set_size((DRAW_X, DRAW_Y));
-//     // turtle.hide();
-//     // turtle.set_pen_size(1.0);
-//     // turtle.set_speed("instant");
-//
-// // fn view(app: &App, frame: Frame) -> Frame  {
-// //     let canvas = unsafe{ c_pointer.as_ref().unwrap()};
-// //     // let draw = app.draw();
-// //     // turtle.drawing_mut().set_title(&format!("lattice {}x{}",lattice_size, lattice_size));
-// //     // for i in 0..DRAW_X{
-// //     //     for j in 0..DRAW_Y{
-// //     //         // if canvas.is_color_match(i as usize, j as usize, 0){
-// //     //              draw.rect()
-// //     //                 .x_y(i as f32, j as f32)
-// //     //                 .w(1.0)
-// //     //                 .h(1.0)
-// //     //                 .color(LIGHT_YELLOW);
-// //     //             // turtle.point((i as i32 - x_offset) as Float, (j as i32 - y_offset) as Float);
-// //     //         // }
-// //     //     }
-// //     // }
-// //     // draw.to_frame(app, &frame).unwrap();
-// //     frame.blit_from_simple_framebuffer(canvas);
-// //     println!("frame");
-// //     frame
-// // }
