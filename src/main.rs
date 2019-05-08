@@ -32,6 +32,7 @@ fn cos(x:Float) -> Float {
 
 struct Pixel<'a>{
     value: &'a mut u32,
+    pixel: (usize, usize),
     cartesian: (Float,Float), //Cartesian coordinates
     size: (Float, Float),
     lattice_dim: usize
@@ -110,13 +111,29 @@ impl Canvas{
             let column = i as i64 %  pixel_x  as i64 - zero_x as i64;
             let y = (row as Float) * pixel_size_y;
             let x = (column as Float) * pixel_size_x;
-            (x,y)
+            ((row, column), (x,y))
         };
         (&mut self.img).iter_mut().enumerate().map(
-             move |(i, value)| Pixel{value, cartesian: calc(i), size: (pixel_size_x, pixel_size_y), lattice_dim}
+             move |(i, value)| Pixel{value, (pixel, cartesian): calc(i), size: (pixel_size_x, pixel_size_y), lattice_dim}
         //    move |(i, value)| Pixel{value, cartesian: (0.0, 0.0), size: (pixel_size_x, pixel_size_y), lattice_dim}
         )
     }
+    // fn get_neighbors<'a>(&'a self, pixel: & Pixel<'a>) -> Vec<Pixel<'a>>{
+    //     fn is_left_ok(x:usize)->bool {
+    //         x>=self.pixel_size_x
+    //     }
+    //     fn is_right_ok(x:usize){
+    //     }
+    //     fn is_down_ok(y:usize){
+    //
+    //     }
+    //     fn is_up_ok(y:usize) {
+    //
+    //     }
+    //     let mut res: Vec<Pixel> = Vec::with_capacity(8);
+    //
+    //     res
+    // }
 
 }
 
