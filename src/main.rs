@@ -38,7 +38,6 @@ struct Pixel<'a>{
     lattice_dim: usize
 }
 impl<'a> Pixel<'a> {
-
     fn iterate_lattice(&self) -> impl Iterator<Item = (Float, Float)>{
         let x = self.cartesian.0;
         let y = self.cartesian.1;
@@ -106,17 +105,16 @@ impl Canvas{
         let zero_x = self.zero_x;
         let zero_y = self.zero_y;
         let lattice_dim = self.lattice_dim;
-        let calc = move |i| {
-            let row = i as i64 / pixel_x as i64 - zero_y as i64;
-            let column = i as i64 %  pixel_x  as i64 - zero_x as i64;
+        let calc = move |(i, value)| {
+            let row = (i as i64 / pixel_x as i64 - zero_y as i64) as usize;
+            let column = (i as i64 %  pixel_x  as i64 - zero_x as i64) as usize;
             let y = (row as Float) * pixel_size_y;
             let x = (column as Float) * pixel_size_x;
-            ((row, column), (x,y))
+            // ((row, column), (x,y))
+            Pixel{value:value, pixel:(row, column), cartesian: (x,y), size: (pixel_size_x, pixel_size_y), lattice_dim}
         };
-        (&mut self.img).iter_mut().enumerate().map(
-             move |(i, value)| Pixel{value, (pixel, cartesian): calc(i), size: (pixel_size_x, pixel_size_y), lattice_dim}
+        (&mut self.img).iter_mut().enumerate().map(calc)
         //    move |(i, value)| Pixel{value, cartesian: (0.0, 0.0), size: (pixel_size_x, pixel_size_y), lattice_dim}
-        )
     }
     // fn get_neighbors<'a>(&'a self, pixel: & Pixel<'a>) -> Vec<Pixel<'a>>{
     //     fn is_left_ok(x:usize)->bool {
