@@ -4,6 +4,7 @@ use itertools::Itertools;
 use std::time::{Duration, Instant};
 use std::thread::sleep;
 use minifb::{Key, WindowOptions, Window};
+use std::f32::consts::*;
 
 type Float = f32;
 fn sin(x:Float) ->Float {
@@ -158,13 +159,16 @@ fn main() {
     //     "wiggle-squares"
     // );
     // let picture = (|x:Float, y:Float| sin(1.0/x)-sin(1.0/y), 1.92*5.0, 1.08/5.0, "curve in cross");
-    let picture = (|x:Float, y:Float| sin(x)-cos(y)-sin(x/cos(y)), 1.92*100.0, 1.08*11.8, "beads");
+    // let picture = (|x:Float, y:Float| sin(x)-cos(y)-sin(x/cos(y)), 1.92*100.0, 1.08*11.8, "beads");
     // let picture = (|x:Float, y:Float| sin(x*x/y)-cos(y*y/x), 1.92*100.0, 1.08*100.0, "butterfly");
     // let picture = (|x:Float, y:Float| x-y, 300.0, 3.0, "butterfly");
+    // let picture = (|x:Float, y:Float| (x*x+y*y)*sin(x*y)-PI, 1.92*42.0, 1.08*42.0, "muare");
+    let picture = (|x:Float, y:Float| (x*x+y*y)*sin(x*y)-PI, 1.92*100.0, 1.08*100.0, "darkness come");
+    let picture = (|x:Float, y:Float| (x*x+y*y)*sin(x*y)-PI, 1.92*470.0, 1.08*470.0, "sea of solicitude");
     let mut canvas = Canvas::new(
         1920,1080,
         picture.1, picture.2,
-        1920/2, 1080/2, 37,
+        1920/2, 1080/2, 17,
     );
     let now = Instant::now();
     for pixel in canvas.iter_mut(){
