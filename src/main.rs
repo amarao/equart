@@ -1,9 +1,18 @@
 extern crate minifb;
+extern crate clipboard;
+extern crate lodepng;
 
 use itertools::Itertools;
 use std::time::{Duration, Instant};
 use std::thread::sleep;
+
 use minifb::{Key, WindowOptions, Window};
+
+use clipboard::ClipboardProvider;
+use clipboard::ClipboardContext;
+
+use lodepng::encode32 as png_encode;
+
 
 type Float = f32;
 fn sin(x:Float) ->Float {
@@ -135,6 +144,16 @@ impl Canvas{
 
 }
 
+fn copy_to_clipboard(canvas: &Canvas){
+    // let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
+    // ctx.set_contents(&canvas.img);
+    println!("encoding start");
+    let png = png_encode(&canvas.img, canvas.pixel_x, canvas.pixel_y).unwrap();
+    // use std::mem::size_of_val;
+    println!("encoding end, size: {}", png.len());
+    println!("Copying to clipboard");
+}
+
 fn show_and_wait(canvas:Canvas){
     let mut window = Window::new("Test - ESC to exit",
                                  canvas.pixel_x,
@@ -146,6 +165,9 @@ fn show_and_wait(canvas:Canvas){
     window.update_with_buffer(&canvas.img).unwrap();
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        if window.is_key_down(Key::Enter){
+            copy_to_clipboard(&canvas)
+        }
         let start = Instant::now();
         window.update();
         let spend = start.elapsed();
@@ -179,7 +201,7 @@ fn main() {
     let mut canvas = Canvas::new(
         1920,1080,
         picture.1, picture.2,
-        1920/2, 1080/2, 37,
+        1920/2, 1080/2, 2,
     );
     let now = Instant::now();
     for pixel in canvas.iter_mut(){
