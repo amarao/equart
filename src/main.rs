@@ -41,7 +41,7 @@ fn cos(x:Float) -> Float {
 
 struct Pixel<'a>{
     value: &'a mut u32,
-    pixel: (usize, usize),
+    pixel: (i64, i64),
     cartesian: (Float,Float), //Cartesian coordinates
     size: (Float, Float),
     lattice_dim: usize
@@ -115,8 +115,8 @@ impl Canvas{
         let zero_y = self.zero_y;
         let lattice_dim = self.lattice_dim;
         let calc = move |(i, value)| {
-            let row = (i as i64 / pixel_x as i64 - zero_y as i64) as usize;
-            let column = (i as i64 %  pixel_x  as i64 - zero_x as i64) as usize;
+            let row = i as i64 / pixel_x as i64 - zero_y as i64;
+            let column = i as i64 %  pixel_x  as i64 - zero_x as i64;
             let y = (row as Float) * pixel_size_y;
             let x = (column as Float) * pixel_size_x;
             // ((row, column), (x,y))
@@ -177,11 +177,11 @@ fn show_and_wait(canvas:Canvas){
 
 
 fn main() {
-    // let picture = (
-    //     |x:Float, y:Float| x.sin()-y,
-    //     1.92*2.0,
-    //     1.08*2.0,
-    // );
+    let picture = (
+        |x:Float, y:Float| x.sin()-y,
+        1.92*2.0,
+        1.08*2.0,
+    );
     // let picture = (
     //     |x:Float ,y:Float| (x*x).sin() - (y*y).cos(),
     //     1.92*20.0,
@@ -195,7 +195,7 @@ fn main() {
     //     "wiggle-squares"
     // );
     // let picture = (|x:Float, y:Float| sin(1.0/x)-sin(1.0/y), 1.92*5.0, 1.08/5.0, "curve in cross");
-    let picture = (|x:Float, y:Float| sin(x)-cos(y)-sin(x/cos(y)), 1.92*100.0, 1.08*11.8, "beads");
+    // let picture = (|x:Float, y:Float| sin(x)-cos(y)-sin(x/cos(y)), 1.92*100.0, 1.08*11.8, "beads");
     // let picture = (|x:Float, y:Float| sin(x*x/y)-cos(y*y/x), 1.92*100.0, 1.08*100.0, "butterfly");
     // let picture = (|x:Float, y:Float| x-y, 300.0, 3.0, "butterfly");
     let mut canvas = Canvas::new(
