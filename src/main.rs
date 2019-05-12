@@ -39,30 +39,55 @@ fn cos(x:Float) -> Float {
 //     }
 // }
 
-struct Pixel<'a>{
-    value: &'a mut u32,
-    pixel: (i64, i64),
-    cartesian: (Float,Float), //Cartesian coordinates
-    size: (Float, Float),
-    lattice_dim: usize
+struct Pixel {
+    index: usize,
+    // pixel: (i64, i64),
+    // cartesian: (Float,Float), //Cartesian coordinates
+    // size: (Float, Float),
+    // lattice_dim: usize
 }
-impl<'a> Pixel<'a> {
-    fn iterate_lattice(&self) -> impl Iterator<Item = (Float, Float)>{
-        let x = self.cartesian.0;
-        let y = self.cartesian.1;
-        let dx = self.size.0;
-        let dy = self.size.1;
-        let lattice = self.lattice_dim;
-        let conv = move |(i, j): (usize, usize)| (x+dx/(lattice - 1) as Float * i as Float, y+dy/(lattice - 1) as Float * j as Float);
-        let new_it = (0..self.lattice_dim).cartesian_product(0..self.lattice_dim).map(conv);
-        new_it
+
+impl  Pixel {
+    fn as_pixel(&self, canvas: &Canvas) -> [i64; 2]{
+        let row = self.index as i64 / canvas.pixel_x as i64 - canvas.zero_y as i64;
+        let column = self.index as i64 %  canvas.pixel_x  as i64 - canvas.zero_x as i64;
+        [row, column]
+    }
+    fn as_cartesian(&self, canvas: &Canvas) -> [Float; 2]{
+        let [row, column] = self.as_pixel(canvas);
+        let y = (row as Float) * canvas.pixel_size_y;
+        let x = (column as Float) * canvas.pixel_size_x;
+        [x,  y]
+    }
+    fn iterate_lattice_as_cartesian(&self, canvas: &Canvas) -> impl Iterator<Item =[Float;2]> {
+        let [x,y] = self.as_cartesian(canvas);
+        let (dx, dy) = (canvas.pixel_size_x, canvas.pixel_size_y);
+        let subcanvas = (canvas.lattice_dim - 1) as Float;
+        let conv = move |(i, j): (usize, usize)| {
+                [
+                    x+dx/subcanvas * i as Float,
+                    y+dy/subcanvas * j as Float
+                ]
+            };
+        (0..canvas.lattice_dim).cartesian_product(0..canvas.lattice_dim).map(conv)
     }
 
-    fn sign_change_on_lattice<F> (&self, func:F) -> bool where
+    // fn iterate_lattice(&self) -> impl Iterator<Item = (Float, Float)>{
+    //     let x = self.cartesian.0;
+    //     let y = self.cartesian.1;
+    //     let dx = self.size.0;
+    //     let dy = self.size.1;
+    //     let lattice = self.lattice_dim;
+    //     let conv = move |(i, j): (usize, usize)| (x+dx/(lattice - 1) as Float * i as Float, y+dy/(lattice - 1) as Float * j as Float);
+    //     let new_it = (0..self.lattice_dim).cartesian_product(0..self.lattice_dim).map(conv);
+    //     new_it
+    // }
+
+    fn sign_change_on_lattice<F> (&self, func:F, canvas: &Canvas) -> bool where
         F: Fn(Float, Float) -> Float
     {
         let mut sign: Option<bool> = None;
-        for (x,y) in self.iterate_lattice(){
+        for [x, y] in self.iterate_lattice_as_cartesian(canvas){
             let res = func(x,y);
             if !res.is_finite() {return false};
             let num_sign = res.signum() > 0.0;
@@ -106,49 +131,27 @@ impl Canvas{
         };
         canvas
     }
-    fn iter_mut<'iter>(&'iter mut self) ->  impl Iterator<Item = Pixel<'iter>>{
-        let pixel_x = self.pixel_x;
-        let pixel_size_x = self.pixel_size_x;
-        let pixel_size_y = self.pixel_size_y;
-        println!("pixel size: {}x{}", pixel_size_x, pixel_size_y);
-        let zero_x = self.zero_x;
-        let zero_y = self.zero_y;
-        let lattice_dim = self.lattice_dim;
-        let calc = move |(i, value)| {
-            let row = i as i64 / pixel_x as i64 - zero_y as i64;
-            let column = i as i64 %  pixel_x  as i64 - zero_x as i64;
-            let y = (row as Float) * pixel_size_y;
-            let x = (column as Float) * pixel_size_x;
-            // ((row, column), (x,y))
-            Pixel{value:value, pixel:(row, column), cartesian: (x,y), size: (pixel_size_x, pixel_size_y), lattice_dim}
-        };
-        (&mut self.img).iter_mut().enumerate().map(calc)
+    fn iter(&self) ->  impl Iterator<Item = Pixel>{
+        (0..(self.pixel_x*self.pixel_y)).into_iter().map(|x|Pixel{index: x as usize})
         //    move |(i, value)| Pixel{value, cartesian: (0.0, 0.0), size: (pixel_size_x, pixel_size_y), lattice_dim}
     }
 
-    fn get_pixel<'a>(&'a mut self, pixel:&Pixel, offset:[i64;2]) -> Option<Pixel<'a>> {
-        let i = (offset[1] - self.zero_y as i64) * self.pixel_y as i64 + (offset[0] - self.zero_x as i64);
-        if 0 < i || i >= self.pixel_x as i64 *self.pixel_y as i64 {
-            None
-        }else{
-            let y = offset[1] as Float * self.pixel_size_y;
-            let x = offset[0] as Float * self.pixel_size_x;
-            Some(Pixel{value: & mut self.img[i as usize], pixel:(offset[0], offset[1]), cartesian: (x,y), size: (self.pixel_size_x, self.pixel_size_y), lattice_dim:self.lattice_dim})
-        }
-    }
-
-    fn get_neighbors<'a>(&'a mut self, pixel: & Pixel<'a>) -> Vec<Pixel<'a>>{
+    fn get_neighbors(& self, pixel: & Pixel) -> Vec<Pixel>{
         let mut res: Vec<Pixel> = Vec::with_capacity(8);
         for x in -1..2{
-            for y in -1..2{
+            for y in -1..2 {
                 if x==y && y==0 { continue };
-                match self.get_pixel(pixel, [x,y]){
-                    None => {continue},
-                    Some(pix) => {res.push(pix);}
+                let neighbor = pixel.index as i64 + y as i64 *self.pixel_x as i64 + x as i64;
+                if neighbor < 0 || neighbor > self.pixel_x as i64 *self.pixel_y as i64{
+                    continue;
                 }
+                res.push(Pixel{index: neighbor as usize});
             }
         }
-        return res
+        res
+    }
+    fn set_pixel(& mut self, pixel: &Pixel, value: u32) {
+        self.img[pixel.index] = value;
     }
 }
 
@@ -215,9 +218,9 @@ fn main() {
         1920/2, 1080/2, 4,
     );
     let now = Instant::now();
-    for pixel in canvas.iter_mut(){
-        if pixel.sign_change_on_lattice(picture.0){
-            *pixel.value = 0;
+    for pixel in canvas.iter(){
+        if pixel.sign_change_on_lattice(picture.0, &canvas){
+            canvas.set_pixel(&pixel, 0);
         }
     }
     println!("Rendered in {:#?}", now.elapsed());
