@@ -5,7 +5,7 @@ extern crate lodepng;
 use itertools::Itertools;
 use std::time::{Duration, Instant};
 use std::thread::sleep;
-
+use std::cmp;
 use minifb::{Key, WindowOptions, Window};
 
 use clipboard::ClipboardProvider;
@@ -22,6 +22,7 @@ fn cos(x:Float) -> Float {
     x.cos()
 }
 
+#[derive (PartialEq)]
 struct Pixel {
     index: usize,
 }
@@ -68,6 +69,7 @@ impl  Pixel {
         false
     }
 }
+
 
 struct Canvas {
     img: Vec<u32>,
@@ -156,6 +158,57 @@ fn show_and_wait(canvas:Canvas){
     }
 }
 
+fn render<F>(canvas: &mut Canvas, f: &F) where
+    F: Fn(Float, Float) -> Float
+{
+    for pixel in canvas.iter(){
+        if pixel.sign_change_on_lattice(f, &canvas, canvas.lattice_dim){
+            canvas.set_pixel(&pixel, 0);
+        }
+    }
+}
+
+fn clarify<F>(canvas: &mut Canvas, f: &F) -> u64 where
+    F: Fn(Float, Float) -> Float
+{
+    let mut update_count = -1;
+    let mut iteration = 0;
+
+    let mut last_roots: Vec<Pixel> = Vec::new();
+    for _ in 0..6 {
+        while update_count !=0  {
+            update_count = 0;
+            iteration += 1;
+            let mut new_roots: Vec<Pixel> = Vec::new();
+            let mut max_impact = 1;
+            for pixel in canvas.iter(){
+                if canvas.get_pixel(&pixel) != 0 {
+                    let mut impact = iteration;
+                    for neighbor in canvas.get_neighbors(&pixel).iter() {
+                        if canvas.get_pixel(neighbor) == 0u32 {
+                                if last_roots.contains(neighbor) {
+                                    impact *= 10;
+                                }
+                                impact *= 2;
+                        }
+                    }
+                    if impact != 1 {
+                        if pixel.sign_change_on_lattice(f, &canvas, (canvas.lattice_dim as u64 * impact) as usize){
+                            max_impact = cmp::max(impact, max_impact);
+                            canvas.set_pixel(&pixel, 0);
+                            update_count += 1;
+                            new_roots.push(pixel);
+                        }
+                    }
+                }
+            }
+            last_roots = new_roots;
+            println!("Updating: iteration {}  max lattice:{}, {} additional pixels", iteration, iteration * max_impact,  update_count);
+        }
+        update_count=-1;
+    }
+    iteration
+}
 
 fn main() {
     // let picture = (
@@ -175,47 +228,22 @@ fn main() {
     //     1.08*64.0,
     //     "wiggle-squares"
     // );
-    // let picture = (|x:Float, y:Float| sin(1.0/x)-sin(1.0/y), 1.92*5.0, 1.08/5.0, "curve in cross");
+    let picture = (|x:Float, y:Float| sin(1.0/x)-sin(1.0/y), 1.92*5.0, 1.08/5.0, "curve in cross");
     // let picture = (|x:Float, y:Float| sin(x)-cos(y)-sin(x/cos(y)), 1.92*100.0, 1.08*11.8, "beads");
     // let picture = (|x:Float, y:Float| sin(x*x/y)-cos(y*y/x), 1.92*100.0, 1.08*100.0, "butterfly");
     // let picture = (|x:Float, y:Float| x-y, 300.0, 3.0, "butterfly");
 
     // let picture = (|x:Float, y:Float| sin(x/y)-sin(y/x), 1.92*100.0, 1.08/100.0, "?");
-    let picture = (|x:Float, y:Float| (sin(x)+sin(y/2.0))*(sin(x)+sin(x/2.0)-y), 1.92*20.0, 1.08*20.0, "two quarters");
+    // let picture = (|x:Float, y:Float| (sin(x)+sin(y/2.0))*(sin(x)+sin(x/2.0)-y), 1.92*20.0, 1.08*20.0, "two quarters");
     let mut canvas = Canvas::new(
         1920,1080,
         picture.1, picture.2,
-        1920/2, 1080/2, 4,
+        1920/2, 1080/2, 2,
     );
     let now = Instant::now();
-    for pixel in canvas.iter(){
-        if pixel.sign_change_on_lattice(picture.0, &canvas, canvas.lattice_dim){
-            canvas.set_pixel(&pixel, 0);
-        }
-    }
+    render(&mut canvas, &picture.0);
     println!("Rendered in {:#?}", now.elapsed());
-    let mut update_count = -1;
-    let mut iteration = 0;
-    while update_count !=0  {
-        update_count = 0;
-        iteration += 1;
-        for pixel in canvas.iter(){
-            if canvas.get_pixel(&pixel) != 0{
-                let mut impact = iteration;
-                for neighbor in canvas.get_neighbors(&pixel).iter(){
-                    if canvas.get_pixel(neighbor) == 0u32 {
-                            impact *= 2;
-                    }
-                }
-                if impact != 1 {
-                    if pixel.sign_change_on_lattice(picture.0, &canvas, (canvas.lattice_dim as u64 * impact) as usize){
-                        canvas.set_pixel(&pixel, 0);
-                        update_count += 1;
-                    }
-                }
-            }
-        }
-        println!("Updating: iteration {}, {} additional pixels", iteration, update_count);
-    }
+    clarify(&mut canvas, &picture.0);
+    println!("Finish rendering and updates in {:#?}", now.elapsed());
     show_and_wait(canvas);
 }
