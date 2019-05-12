@@ -72,9 +72,9 @@ impl  Pixel {
     }
 }
 
-
+type PixelColor = u8;
 struct Canvas {
-    img: Vec<u32>,
+    img: Vec<PixelColor>,
     pixel_x: usize,
     pixel_y: usize,
     pixel_size_x: Float,
@@ -87,7 +87,7 @@ impl Canvas{
     fn new(canvas_x: usize, canvas_y:usize, cartesian_x: Float, cartesian_y:Float, zero_position_x: usize, zero_position_y: usize) -> Canvas {
         let img_size = ((canvas_x as u64)*(canvas_y as u64)) as usize;
         let canvas = Canvas{
-                img: vec![0xFFFF_FFFF;img_size],
+                img: vec![0xFF;img_size],
                 pixel_x: canvas_x,
                 pixel_y: canvas_y,
                 zero_x: zero_position_x,
@@ -118,8 +118,8 @@ impl Canvas{
     }
     fn neighbors_roots_count(&self, pixel: &Pixel) -> u64 {
         let mut res = 0;
-        for x in -3..4{
-            for y in -3..4 {
+        for x in -30..31{
+            for y in -30..31 {
                 if x==y && y==0 { continue };
                 let neighbor = pixel.index as i64 + y as i64 *self.pixel_x as i64 + x as i64;
                 if neighbor < 0 || neighbor >= self.pixel_x as i64 *self.pixel_y as i64{
@@ -131,10 +131,10 @@ impl Canvas{
     res
 }
 
-    fn set_pixel(& mut self, pixel: &Pixel, value: u32) {
+    fn set_pixel(& mut self, pixel: &Pixel, value: PixelColor) {
         self.img[pixel.index] = value;
     }
-    fn get_pixel(&self, pixel:&Pixel) -> u32 {
+    fn get_pixel(&self, pixel:&Pixel) -> PixelColor {
         self.img[pixel.index]
     }
     fn roots(&self) -> u64{
@@ -158,9 +158,9 @@ fn show_and_wait(canvas:Canvas){
                                  canvas.pixel_y,
                                  WindowOptions::default()
                                  ).unwrap();
-
+    let new_img: Vec<u32> = canvas.img.iter().map(|x| (*x as u32)*0x0101_0101).collect();
     std::thread::sleep(Duration::new(0,150_000_000));
-    window.update_with_buffer(&canvas.img).unwrap();
+    window.update_with_buffer(&new_img).unwrap();
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         if window.is_key_down(Key::Enter){
@@ -187,7 +187,7 @@ fn up_render<F>(canvas: &mut Canvas, f: &F, lattice_dim:usize) where
     F: Fn(Float, Float) -> Float
 {
     for pixel in canvas.iter(){
-        if canvas.img[pixel.index]!=0u32 {
+        if canvas.img[pixel.index]!=0 as PixelColor {
             if pixel.sign_change_on_lattice(f, &canvas, lattice_dim){
                 canvas.set_pixel(&pixel, 0);
             }
@@ -201,47 +201,57 @@ fn clarify<F>(canvas: &mut Canvas, f: &F, lattice_dim:usize) -> u64 where
 {
     let mut update_count = -1;
     let mut iteration = 0;
-
-    let mut last_roots: Vec<Pixel> = Vec::new();
+    let mut scandepth: Vec<u16> = vec![lattice_dim as u16;canvas.img.len()];
     for _ in 0..6 {
+        let mut last_roots: Vec<Pixel> = Vec::new();
         while update_count !=0  {
             update_count = 0;
             iteration += 1;
-
-
             let mut max_boost = 1;
+            let scan_lattice = (lattice_dim as u64 + iteration) as usize;
+            let deepscan_lattice = (lattice_dim as u64 + iteration*2) as usize;
+            let mut pix_count = 0;
             for pixel in canvas.iter(){
                 if canvas.get_pixel(&pixel) != 0 {
-                    let boost = canvas.neighbors_roots_count(&pixel);
-                    if boost > 0 {
-                        if pixel.sign_change_on_lattice(f, &canvas, (lattice_dim as u64 + boost + iteration) as usize){
-                            max_boost = cmp::max(boost, max_boost);
-                            canvas.set_pixel(&pixel, 0);
-                            update_count += 1;
-                            last_roots.push(pixel);
-                        }
-                    }
-                }
-            }
-
-            while last_roots.len() !=0 {
-                println!("New roots hunt: {}", last_roots.len());
-                let mut new_roots: Vec<Pixel> = Vec::new();
-                for last_root in last_roots.iter(){
-                    for neighbor in canvas.get_neighbors(&last_root){
-                        if canvas.get_pixel(&neighbor) != 0u32{
-                            if neighbor.sign_change_on_lattice(f, &canvas, (lattice_dim as u64 + iteration) as usize){
+                    if scandepth[pixel.index] < scan_lattice as u16{
+                        scandepth[pixel.index] = scan_lattice as u16;
+                        if canvas.neighbors_roots_count(&pixel) > 0 {
+                            pix_count += 1;
+                            if pixel.sign_change_on_lattice(f, &canvas, scan_lattice){
                                 max_boost = cmp::max(iteration, max_boost);
-                                canvas.set_pixel(&neighbor, 0);
+                                canvas.set_pixel(&pixel, 0);
                                 update_count += 1;
-                                new_roots.push(neighbor);
+                                last_roots.push(pixel);
                             }
                         }
                     }
                 }
+            }
+            println!("Scanned {} pixels for new roots, found: {} at lattice {}", pix_count, update_count, scan_lattice);
+
+            while last_roots.len() !=0 {
+                let mut pix_count = 0;
+                let mut new_roots: Vec<Pixel> = Vec::new();
+                for last_root in last_roots.iter(){
+                    for neighbor in canvas.get_neighbors(&last_root){
+                        if scandepth[neighbor.index] < deepscan_lattice as u16{
+                            scandepth[neighbor.index] = deepscan_lattice as u16;
+                            pix_count += 1;
+                            if canvas.get_pixel(&neighbor) != 0 as PixelColor{
+                                if neighbor.sign_change_on_lattice(f, &canvas, deepscan_lattice){
+                                    max_boost = cmp::max(iteration, max_boost);
+                                    canvas.set_pixel(&neighbor, 0);
+                                    update_count += 1;
+                                    new_roots.push(neighbor);
+                                }
+                            }
+                        }
+                    }
+                }
+                println!("Deep scan {} pixels (neighbors of {} new roots), found {} more new neighbor roots at lattice {}", pix_count, last_roots.len(), new_roots.len(), deepscan_lattice);
                 last_roots = new_roots.clone();
             }
-            println!("Updating: iteration {}  max lattice:{}, {} additional pixels", iteration, lattice_dim as u64 + max_boost + iteration,  update_count);
+            println!("Updating: iteration {}, found {} additional pixels", iteration, update_count);
         }
         update_count=-1;
     }
@@ -283,7 +293,7 @@ fn main() {
     println!("Rendered in {:#?}, {} roots", now.elapsed(), canvas.roots());
     up_render(&mut canvas, &picture.0, 7);
     println!("Rendered and uprendered in {:#?}, {}", now.elapsed(), canvas.roots());
-    clarify(&mut canvas, &picture.0, 23);
+    clarify(&mut canvas, &picture.0, 11);
     println!("Finish rendering and updates in {:#?}, found {} roots", now.elapsed(), canvas.roots());
     show_and_wait(canvas);
 }
