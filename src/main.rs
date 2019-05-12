@@ -22,29 +22,8 @@ fn cos(x:Float) -> Float {
     x.cos()
 }
 
-
-
-// trait Point {
-//     fn point(&mut self, x:Float, y:Float);
-// }
-//
-// impl Point for Turtle {
-//     fn point(&mut self, x:Float, y:Float){
-//
-//         self.pen_up();
-//         self.go_to([x, y]);
-//         self.pen_down();
-//         self.forward(1.0);
-//         self.pen_up();
-//     }
-// }
-
 struct Pixel {
     index: usize,
-    // pixel: (i64, i64),
-    // cartesian: (Float,Float), //Cartesian coordinates
-    // size: (Float, Float),
-    // lattice_dim: usize
 }
 
 impl  Pixel {
@@ -59,10 +38,10 @@ impl  Pixel {
         let x = (column as Float) * canvas.pixel_size_x;
         [x,  y]
     }
-    fn iterate_lattice_as_cartesian(&self, canvas: &Canvas) -> impl Iterator<Item =[Float;2]> {
+    fn iterate_lattice_as_cartesian(&self, canvas: &Canvas, lattice_dim:usize) -> impl Iterator<Item =[Float;2]> {
         let [x,y] = self.as_cartesian(canvas);
         let (dx, dy) = (canvas.pixel_size_x, canvas.pixel_size_y);
-        let subcanvas = (canvas.lattice_dim - 1) as Float;
+        let subcanvas = (lattice_dim - 1) as Float;
         let conv = move |(i, j): (usize, usize)| {
                 [
                     x+dx/subcanvas * i as Float,
@@ -72,22 +51,11 @@ impl  Pixel {
         (0..canvas.lattice_dim).cartesian_product(0..canvas.lattice_dim).map(conv)
     }
 
-    // fn iterate_lattice(&self) -> impl Iterator<Item = (Float, Float)>{
-    //     let x = self.cartesian.0;
-    //     let y = self.cartesian.1;
-    //     let dx = self.size.0;
-    //     let dy = self.size.1;
-    //     let lattice = self.lattice_dim;
-    //     let conv = move |(i, j): (usize, usize)| (x+dx/(lattice - 1) as Float * i as Float, y+dy/(lattice - 1) as Float * j as Float);
-    //     let new_it = (0..self.lattice_dim).cartesian_product(0..self.lattice_dim).map(conv);
-    //     new_it
-    // }
-
-    fn sign_change_on_lattice<F> (&self, func:F, canvas: &Canvas) -> bool where
+    fn sign_change_on_lattice<F> (&self, func:F, canvas: &Canvas, lattice_dim:usize) -> bool where
         F: Fn(Float, Float) -> Float
     {
         let mut sign: Option<bool> = None;
-        for [x, y] in self.iterate_lattice_as_cartesian(canvas){
+        for [x, y] in self.iterate_lattice_as_cartesian(canvas, lattice_dim){
             let res = func(x,y);
             if !res.is_finite() {return false};
             let num_sign = res.signum() > 0.0;
@@ -133,7 +101,6 @@ impl Canvas{
     }
     fn iter(&self) ->  impl Iterator<Item = Pixel>{
         (0..(self.pixel_x*self.pixel_y)).into_iter().map(|x|Pixel{index: x as usize})
-        //    move |(i, value)| Pixel{value, cartesian: (0.0, 0.0), size: (pixel_size_x, pixel_size_y), lattice_dim}
     }
 
     fn get_neighbors(& self, pixel: & Pixel) -> Vec<Pixel>{
@@ -142,7 +109,7 @@ impl Canvas{
             for y in -1..2 {
                 if x==y && y==0 { continue };
                 let neighbor = pixel.index as i64 + y as i64 *self.pixel_x as i64 + x as i64;
-                if neighbor < 0 || neighbor > self.pixel_x as i64 *self.pixel_y as i64{
+                if neighbor < 0 || neighbor >= self.pixel_x as i64 *self.pixel_y as i64{
                     continue;
                 }
                 res.push(Pixel{index: neighbor as usize});
@@ -152,6 +119,9 @@ impl Canvas{
     }
     fn set_pixel(& mut self, pixel: &Pixel, value: u32) {
         self.img[pixel.index] = value;
+    }
+    fn get_pixel(&self, pixel:&Pixel) -> u32 {
+        self.img[pixel.index]
     }
 }
 
@@ -219,10 +189,33 @@ fn main() {
     );
     let now = Instant::now();
     for pixel in canvas.iter(){
-        if pixel.sign_change_on_lattice(picture.0, &canvas){
+        if pixel.sign_change_on_lattice(picture.0, &canvas, canvas.lattice_dim){
             canvas.set_pixel(&pixel, 0);
         }
     }
     println!("Rendered in {:#?}", now.elapsed());
+    let mut update_count = -1;
+    let mut iteration = 0;
+    while update_count !=0  {
+        update_count = 0;
+        iteration += 1;
+        for pixel in canvas.iter(){
+            if canvas.get_pixel(&pixel) != 0{
+                let mut impact = iteration;
+                for neighbor in canvas.get_neighbors(&pixel).iter(){
+                    if canvas.get_pixel(neighbor) == 0u32 {
+                            impact *= 2;
+                    }
+                }
+                if impact != 1 {
+                    if pixel.sign_change_on_lattice(picture.0, &canvas, (canvas.lattice_dim as u64 * impact) as usize){
+                        canvas.set_pixel(&pixel, 0);
+                        update_count += 1;
+                    }
+                }
+            }
+        }
+        println!("Updating: iteration {}, {} additional pixels", iteration, update_count);
+    }
     show_and_wait(canvas);
 }
