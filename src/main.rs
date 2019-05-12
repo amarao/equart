@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 extern crate minifb;
 extern crate clipboard;
 extern crate lodepng;
@@ -23,6 +24,7 @@ fn cos(x:Float) -> Float {
 }
 
 #[derive (PartialEq)]
+#[derive (Clone)]
 struct Pixel {
     index: usize,
 }
@@ -49,7 +51,7 @@ impl  Pixel {
                     y+dy/subcanvas * j as Float
                 ]
             };
-        (0..canvas.lattice_dim).cartesian_product(0..canvas.lattice_dim).map(conv)
+        (0..lattice_dim).cartesian_product(0..lattice_dim).map(conv)
     }
 
     fn sign_change_on_lattice<F> (&self, func:F, canvas: &Canvas, lattice_dim:usize) -> bool where
@@ -75,17 +77,14 @@ struct Canvas {
     img: Vec<u32>,
     pixel_x: usize,
     pixel_y: usize,
-    cartesian_x: Float,
-    cartesian_y: Float,
     pixel_size_x: Float,
     pixel_size_y: Float,
     zero_x: usize,
     zero_y: usize,
-    lattice_dim: usize,
 }
 
 impl Canvas{
-    fn new(canvas_x: usize, canvas_y:usize, cartesian_x: Float, cartesian_y:Float, zero_position_x: usize, zero_position_y: usize, lattice_dim: usize) -> Canvas {
+    fn new(canvas_x: usize, canvas_y:usize, cartesian_x: Float, cartesian_y:Float, zero_position_x: usize, zero_position_y: usize) -> Canvas {
         let img_size = ((canvas_x as u64)*(canvas_y as u64)) as usize;
         let canvas = Canvas{
                 img: vec![0xFFFF_FFFF;img_size],
@@ -93,11 +92,8 @@ impl Canvas{
                 pixel_y: canvas_y,
                 zero_x: zero_position_x,
                 zero_y: zero_position_y,
-                cartesian_x: cartesian_x,
-                cartesian_y: cartesian_y,
                 pixel_size_x: cartesian_x/(canvas_x as Float),
                 pixel_size_y: cartesian_y/(canvas_y as Float),
-                lattice_dim:lattice_dim,
         };
         canvas
     }
@@ -105,10 +101,11 @@ impl Canvas{
         (0..(self.pixel_x*self.pixel_y)).into_iter().map(|x|Pixel{index: x as usize})
     }
 
+
     fn get_neighbors(& self, pixel: & Pixel) -> Vec<Pixel>{
         let mut res: Vec<Pixel> = Vec::with_capacity(8);
-        for x in -1..2{
-            for y in -1..2 {
+        for x in -10..11{
+            for y in -10..11 {
                 if x==y && y==0 { continue };
                 let neighbor = pixel.index as i64 + y as i64 *self.pixel_x as i64 + x as i64;
                 if neighbor < 0 || neighbor >= self.pixel_x as i64 *self.pixel_y as i64{
@@ -119,11 +116,29 @@ impl Canvas{
         }
         res
     }
+    fn neighbors_roots_count(&self, pixel: &Pixel) -> u64 {
+        let mut res = 0;
+        for x in -3..4{
+            for y in -3..4 {
+                if x==y && y==0 { continue };
+                let neighbor = pixel.index as i64 + y as i64 *self.pixel_x as i64 + x as i64;
+                if neighbor < 0 || neighbor >= self.pixel_x as i64 *self.pixel_y as i64{
+                    continue;
+                }
+                if self.img[neighbor as usize] == 0 {res += 1;}
+            }
+    }
+    res
+}
+
     fn set_pixel(& mut self, pixel: &Pixel, value: u32) {
         self.img[pixel.index] = value;
     }
     fn get_pixel(&self, pixel:&Pixel) -> u32 {
         self.img[pixel.index]
+    }
+    fn roots(&self) -> u64{
+        self.img.iter().filter(|&x| *x==0).count() as u64
     }
 }
 
@@ -158,17 +173,30 @@ fn show_and_wait(canvas:Canvas){
     }
 }
 
-fn render<F>(canvas: &mut Canvas, f: &F) where
+fn render<F>(canvas: &mut Canvas, f: &F, lattice_dim: usize) where
     F: Fn(Float, Float) -> Float
 {
     for pixel in canvas.iter(){
-        if pixel.sign_change_on_lattice(f, &canvas, canvas.lattice_dim){
+        if pixel.sign_change_on_lattice(f, &canvas, lattice_dim){
             canvas.set_pixel(&pixel, 0);
         }
     }
 }
 
-fn clarify<F>(canvas: &mut Canvas, f: &F) -> u64 where
+fn up_render<F>(canvas: &mut Canvas, f: &F, lattice_dim:usize) where
+    F: Fn(Float, Float) -> Float
+{
+    for pixel in canvas.iter(){
+        if canvas.img[pixel.index]!=0u32 {
+            if pixel.sign_change_on_lattice(f, &canvas, lattice_dim){
+                canvas.set_pixel(&pixel, 0);
+            }
+        }
+    }
+}
+
+
+fn clarify<F>(canvas: &mut Canvas, f: &F, lattice_dim:usize) -> u64 where
     F: Fn(Float, Float) -> Float
 {
     let mut update_count = -1;
@@ -179,31 +207,41 @@ fn clarify<F>(canvas: &mut Canvas, f: &F) -> u64 where
         while update_count !=0  {
             update_count = 0;
             iteration += 1;
-            let mut new_roots: Vec<Pixel> = Vec::new();
-            let mut max_impact = 1;
+
+
+            let mut max_boost = 1;
             for pixel in canvas.iter(){
                 if canvas.get_pixel(&pixel) != 0 {
-                    let mut impact = iteration;
-                    for neighbor in canvas.get_neighbors(&pixel).iter() {
-                        if canvas.get_pixel(neighbor) == 0u32 {
-                                if last_roots.contains(neighbor) {
-                                    impact *= 10;
-                                }
-                                impact *= 2;
-                        }
-                    }
-                    if impact != 1 {
-                        if pixel.sign_change_on_lattice(f, &canvas, (canvas.lattice_dim as u64 * impact) as usize){
-                            max_impact = cmp::max(impact, max_impact);
+                    let boost = canvas.neighbors_roots_count(&pixel);
+                    if boost > 0 {
+                        if pixel.sign_change_on_lattice(f, &canvas, (lattice_dim as u64 + boost + iteration) as usize){
+                            max_boost = cmp::max(boost, max_boost);
                             canvas.set_pixel(&pixel, 0);
                             update_count += 1;
-                            new_roots.push(pixel);
+                            last_roots.push(pixel);
                         }
                     }
                 }
             }
-            last_roots = new_roots;
-            println!("Updating: iteration {}  max lattice:{}, {} additional pixels", iteration, iteration * max_impact,  update_count);
+
+            while last_roots.len() !=0 {
+                println!("New roots hunt: {}", last_roots.len());
+                let mut new_roots: Vec<Pixel> = Vec::new();
+                for last_root in last_roots.iter(){
+                    for neighbor in canvas.get_neighbors(&last_root){
+                        if canvas.get_pixel(&neighbor) != 0u32{
+                            if neighbor.sign_change_on_lattice(f, &canvas, (lattice_dim as u64 + iteration) as usize){
+                                max_boost = cmp::max(iteration, max_boost);
+                                canvas.set_pixel(&neighbor, 0);
+                                update_count += 1;
+                                new_roots.push(neighbor);
+                            }
+                        }
+                    }
+                }
+                last_roots = new_roots.clone();
+            }
+            println!("Updating: iteration {}  max lattice:{}, {} additional pixels", iteration, lattice_dim as u64 + max_boost + iteration,  update_count);
         }
         update_count=-1;
     }
@@ -238,12 +276,14 @@ fn main() {
     let mut canvas = Canvas::new(
         1920,1080,
         picture.1, picture.2,
-        1920/2, 1080/2, 2,
+        1920/2, 1080/2
     );
     let now = Instant::now();
-    render(&mut canvas, &picture.0);
-    println!("Rendered in {:#?}", now.elapsed());
-    clarify(&mut canvas, &picture.0);
-    println!("Finish rendering and updates in {:#?}", now.elapsed());
+    render(&mut canvas, &picture.0, 2);
+    println!("Rendered in {:#?}, {} roots", now.elapsed(), canvas.roots());
+    up_render(&mut canvas, &picture.0, 7);
+    println!("Rendered and uprendered in {:#?}, {}", now.elapsed(), canvas.roots());
+    clarify(&mut canvas, &picture.0, 23);
+    println!("Finish rendering and updates in {:#?}, found {} roots", now.elapsed(), canvas.roots());
     show_and_wait(canvas);
 }
