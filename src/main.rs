@@ -136,20 +136,20 @@ impl Canvas{
             Some(Pixel{value: & mut self.img[i as usize], pixel:(offset[0], offset[1]), cartesian: (x,y), size: (self.pixel_size_x, self.pixel_size_y), lattice_dim:self.lattice_dim})
         }
     }
-//
-//     fn get_neighbors<'a>(&'a mut self, pixel: & Pixel<'a>) -> Vec<Pixel<'a>>{
-//         let mut res: Vec<Pixel> = Vec::with_capacity(8);
-//         for x in -1..2{
-//             for y in -1..2{
-//                 if x==y && y==0 { continue };
-//                 match self.get_pixel(pixel, [x,y]){
-//                     None => {continue},
-//                     Some(pix) => {res.push(pix);}
-//                 }
-//             }
-//         }
-//         return res
-//     }
+
+    fn get_neighbors<'a>(&'a mut self, pixel: & Pixel<'a>) -> Vec<Pixel<'a>>{
+        let mut res: Vec<Pixel> = Vec::with_capacity(8);
+        for x in -1..2{
+            for y in -1..2{
+                if x==y && y==0 { continue };
+                match self.get_pixel(pixel, [x,y]){
+                    None => {continue},
+                    Some(pix) => {res.push(pix);}
+                }
+            }
+        }
+        return res
+    }
 }
 
 fn copy_to_clipboard(canvas: &Canvas){
@@ -208,11 +208,11 @@ fn main() {
     // let picture = (|x:Float, y:Float| x-y, 300.0, 3.0, "butterfly");
 
     // let picture = (|x:Float, y:Float| sin(x/y)-sin(y/x), 1.92*100.0, 1.08/100.0, "?");
-    let picture = (|x:Float, y:Float| sin(x/y)-sin(y/x)-1.0, 1.92*10.0, 1.08/10.0, "?");
+    let picture = (|x:Float, y:Float| (sin(x)+sin(y/2.0))*(sin(x)+sin(x/2.0)-y), 1.92*20.0, 1.08*20.0, "two quarters");
     let mut canvas = Canvas::new(
         1920,1080,
         picture.1, picture.2,
-        1920/2, 1080/2, 37,
+        1920/2, 1080/2, 4,
     );
     let now = Instant::now();
     for pixel in canvas.iter_mut(){
