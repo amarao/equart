@@ -125,23 +125,31 @@ impl Canvas{
         (&mut self.img).iter_mut().enumerate().map(calc)
         //    move |(i, value)| Pixel{value, cartesian: (0.0, 0.0), size: (pixel_size_x, pixel_size_y), lattice_dim}
     }
-    // fn get_neighbors<'a>(&'a self, pixel: & Pixel<'a>) -> Vec<Pixel<'a>>{
-    //     fn is_left_ok(x:usize)->bool {
-    //         x>=self.pixel_size_x
-    //     }
-    //     fn is_right_ok(x:usize){
-    //     }
-    //     fn is_down_ok(y:usize){
-    //
-    //     }
-    //     fn is_up_ok(y:usize) {
-    //
-    //     }
-    //     let mut res: Vec<Pixel> = Vec::with_capacity(8);
-    //
-    //     res
-    // }
 
+    fn get_pixel<'a>(&'a mut self, pixel:&Pixel, offset:[i64;2]) -> Option<Pixel<'a>> {
+        let i = (offset[1] - self.zero_y as i64) * self.pixel_y as i64 + (offset[0] - self.zero_x as i64);
+        if 0 < i || i >= self.pixel_x as i64 *self.pixel_y as i64 {
+            None
+        }else{
+            let y = offset[1] as Float * self.pixel_size_y;
+            let x = offset[0] as Float * self.pixel_size_x;
+            Some(Pixel{value: & mut self.img[i as usize], pixel:(offset[0], offset[1]), cartesian: (x,y), size: (self.pixel_size_x, self.pixel_size_y), lattice_dim:self.lattice_dim})
+        }
+    }
+//
+//     fn get_neighbors<'a>(&'a mut self, pixel: & Pixel<'a>) -> Vec<Pixel<'a>>{
+//         let mut res: Vec<Pixel> = Vec::with_capacity(8);
+//         for x in -1..2{
+//             for y in -1..2{
+//                 if x==y && y==0 { continue };
+//                 match self.get_pixel(pixel, [x,y]){
+//                     None => {continue},
+//                     Some(pix) => {res.push(pix);}
+//                 }
+//             }
+//         }
+//         return res
+//     }
 }
 
 fn copy_to_clipboard(canvas: &Canvas){
@@ -177,11 +185,11 @@ fn show_and_wait(canvas:Canvas){
 
 
 fn main() {
-    let picture = (
-        |x:Float, y:Float| x.sin()-y,
-        1.92*2.0,
-        1.08*2.0,
-    );
+    // let picture = (
+    //     |x:Float, y:Float| x.sin()-y,
+    //     1.92*2.0,
+    //     1.08*2.0,
+    // );
     // let picture = (
     //     |x:Float ,y:Float| (x*x).sin() - (y*y).cos(),
     //     1.92*20.0,
@@ -198,10 +206,13 @@ fn main() {
     // let picture = (|x:Float, y:Float| sin(x)-cos(y)-sin(x/cos(y)), 1.92*100.0, 1.08*11.8, "beads");
     // let picture = (|x:Float, y:Float| sin(x*x/y)-cos(y*y/x), 1.92*100.0, 1.08*100.0, "butterfly");
     // let picture = (|x:Float, y:Float| x-y, 300.0, 3.0, "butterfly");
+
+    // let picture = (|x:Float, y:Float| sin(x/y)-sin(y/x), 1.92*100.0, 1.08/100.0, "?");
+    let picture = (|x:Float, y:Float| sin(x/y)-sin(y/x)-1.0, 1.92*10.0, 1.08/10.0, "?");
     let mut canvas = Canvas::new(
         1920,1080,
         picture.1, picture.2,
-        1920/2, 1080/2, 2,
+        1920/2, 1080/2, 37,
     );
     let now = Instant::now();
     for pixel in canvas.iter_mut(){
