@@ -119,8 +119,8 @@ impl Canvas{
     }
     fn neighbors_roots_count(&self, pixel: &Pixel) -> u64 {
         let mut res = 0;
-        for x in -30..31{
-            for y in -30..31 {
+        for x in -6..7{
+            for y in -6..7 {
                 if x==y && y==0 { continue };
                 let neighbor = pixel.index as i64 + y as i64 *self.pixel_x as i64 + x as i64;
                 if neighbor < 0 || neighbor >= self.pixel_x as i64 *self.pixel_y as i64{
@@ -159,7 +159,8 @@ fn show_and_wait(canvas:Canvas){
                                  canvas.pixel_y,
                                  WindowOptions::default()
                                  ).unwrap();
-    let new_img: Vec<u32> = canvas.img.iter().map(|x| (*x as u32)*0x0101_0101).collect();
+    let new_img: Vec<u32> = canvas.img.iter().map(|x| ((*x).clone() as u32)*0x0101_0101).collect();
+    // println!("Drawing {} roots",canvas.roots());
     std::thread::sleep(Duration::new(0,150_000_000));
     window.update_with_buffer(&new_img).unwrap();
 
@@ -203,14 +204,14 @@ fn clarify<F>(canvas: &mut Canvas, f: &F, lattice_dim:usize) -> u64 where
     let mut update_count = -1;
     let mut iteration = 0;
     let mut scandepth: Vec<u16> = vec![lattice_dim as u16;canvas.img.len()];
-    for _ in 0..6 {
+    for attempt in 1..4 {
         let mut last_roots: Vec<Pixel> = Vec::new();
         while update_count !=0  {
             update_count = 0;
             iteration += 1;
             let mut max_boost = 1;
-            let scan_lattice = (lattice_dim as u64 + iteration) as usize;
-            let deepscan_lattice = (lattice_dim as u64 + iteration*2) as usize;
+            let scan_lattice = (lattice_dim as u64 + iteration)  as usize * (attempt);
+            let deepscan_lattice = (lattice_dim as u64 + iteration*2) as usize * (attempt);
             let mut pix_count = 0;
             for pixel in canvas.iter(){
                 if canvas.get_pixel(&pixel) != 0 {
@@ -277,6 +278,7 @@ fn main() {
     //     1.08*64.0,
     //     "wiggle-squares"
     // );
+    let picture = (|x:Float, y:Float| sin(1.0/x)-y, 1.92/100.0, 1.08*2.0, "test");
     // let picture = (|x:Float, y:Float| sin(1.0/x)-sin(1.0/y), 1.92*5.0, 1.08/5.0, "curve in cross");
     // let picture = (|x:Float, y:Float| sin(x)-cos(y)-sin(x/cos(y)), 1.92*100.0, 1.08*11.8, "beads");
     // let picture = (|x:Float, y:Float| sin(x*x/y)-cos(y*y/x), 1.92*100.0, 1.08*100.0, "butterfly");
@@ -287,7 +289,7 @@ fn main() {
     // let picture = (|x:Float, y:Float| (x*x+y*y)*sin(x*y)-PI, 1.92*100.0, 1.08*100.0, "darkness come");
     // let picture = (|x:Float, y:Float| (x*x+y*y)*sin(x*y)-PI, 1.92*470.0, 1.08*470.0, "sea of solicitude");
     // let picture = (|x:Float, y:Float| sin(x*cos(y))-cos(y*sin(x)), 1.92*60.0, 1.08*60.0, "tarnished lace");
-    let picture = (|x:Float, y:Float| sin(x/y)-cos(y/x)+x-y, 1.92*2.8, 1.08*2.8, "trimed knot");
+    // let picture = (|x:Float, y:Float| sin(x/y)-cos(y/x)+x-y, 1.92*2.8, 1.08*2.8, "trimed knot");
     let mut canvas = Canvas::new(
         1920,1080,
         picture.1, picture.2,
