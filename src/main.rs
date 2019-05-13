@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use std::thread::sleep;
 use std::cmp;
 use minifb::{Key, WindowOptions, Window};
+use std::f32::consts::*;
 
 use clipboard::ClipboardProvider;
 use clipboard::ClipboardContext;
@@ -276,17 +277,17 @@ fn main() {
     //     1.08*64.0,
     //     "wiggle-squares"
     // );
-    let picture = (|x:Float, y:Float| sin(1.0/x)-sin(1.0/y), 1.92*5.0, 1.08/5.0, "curve in cross");
+    // let picture = (|x:Float, y:Float| sin(1.0/x)-sin(1.0/y), 1.92*5.0, 1.08/5.0, "curve in cross");
     // let picture = (|x:Float, y:Float| sin(x)-cos(y)-sin(x/cos(y)), 1.92*100.0, 1.08*11.8, "beads");
     // let picture = (|x:Float, y:Float| sin(x*x/y)-cos(y*y/x), 1.92*100.0, 1.08*100.0, "butterfly");
     // let picture = (|x:Float, y:Float| x-y, 300.0, 3.0, "butterfly");
-
     // let picture = (|x:Float, y:Float| sin(x/y)-sin(y/x), 1.92*100.0, 1.08/100.0, "?");
     // let picture = (|x:Float, y:Float| (sin(x)+sin(y/2.0))*(sin(x)+sin(x/2.0)-y), 1.92*20.0, 1.08*20.0, "two quarters");
-    let mut canvas = Canvas::new(
-        1920,1080,
-        picture.1, picture.2,
-        1920/2, 1080/2
+    // let picture = (|x:Float, y:Float| (x*x+y*y)*sin(x*y)-PI, 1.92*42.0, 1.08*42.0, "muare");
+    // let picture = (|x:Float, y:Float| (x*x+y*y)*sin(x*y)-PI, 1.92*100.0, 1.08*100.0, "darkness come");
+    // let picture = (|x:Float, y:Float| (x*x+y*y)*sin(x*y)-PI, 1.92*470.0, 1.08*470.0, "sea of solicitude");
+    // let picture = (|x:Float, y:Float| sin(x*cos(y))-cos(y*sin(x)), 1.92*60.0, 1.08*60.0, "tarnished lace");
+    let picture = (|x:Float, y:Float| sin(x/y)-cos(y/x)+x-y, 1.92*2.8, 1.08*2.8, "trimed knot");
     );
     let now = Instant::now();
     render(&mut canvas, &picture.0, 2);
