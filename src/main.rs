@@ -291,7 +291,11 @@ fn main() {
     // let picture = (|x:Float, y:Float| sin(x*cos(y))-cos(y*sin(x)), 1.92*60.0, 1.08*60.0, "tarnished lace");
     // let picture = (|x:Float, y:Float| sin(x/y)-cos(y/x)+x-y, 1.92*2.8, 1.08*2.8, "trimed knot");
     // let picture = (|x:Float, y:Float| (x+sin(1.0/x)-1.0/sin(x))/10.0-(y/x).exp().sin(), 1.92*3.0, 1.08*12.0, "?");
-    let picture = (|x:Float, y:Float| x/sin(y)-y*y*cos(x), 1.92*64.0, 1.08*64.0, "square soap");
+    // let picture = (|x:Float, y:Float| x/sin(y)-y*y*cos(x), 1.92*64.0, 1.08*64.0, "square soap");
+    // let picture = (|x:Float, y:Float| sin(x+2.0*y)-cos(x*y*y), 1.92*32.0, 1.08*8.0, "?");
+    // let picture = (|x:Float, y:Float| (y*y+x*x-(1.0-0.2*(x/y).atan()).sin()), 1.92*4.0, 1.08*4.0, "?");
+    // let picture = (|x:Float, y:Float| (sin(y)+sin(x+y)+sin(x)-((x/y).atan()).sin()), 1.92*200.0, 1.08*200.0, "!");
+    let picture = (|x:Float, y:Float| (sin(y)+cos(x+y)+sin(x)-((x/y).atan()).cos()), 1.92*256.0, 1.08*256.0, "circle doodling");
     let mut canvas = Canvas::new(
         1920,1080,
         picture.1, picture.2,
@@ -306,7 +310,7 @@ fn main() {
     println!("Rendered and uprendered in {:#?}, {}", now.elapsed(), stage_2_roots);
     if stage_1_roots != stage_2_roots{
         println!("Going for root hunt...");
-        clarify(&mut canvas, &picture.0, 11);
+        // clarify(&mut canvas, &picture.0, 14);
         println!("Finish rendering and updates in {:#?}, found {} roots", now.elapsed(), canvas.roots());
     }else{
         println!("No new roots found, enough.");
