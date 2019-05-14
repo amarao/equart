@@ -210,7 +210,7 @@ fn clarify<F>(canvas: &mut Canvas, f: &F, lattice_dim:usize) -> u64 where
             iteration += 1;
             let mut max_boost = 1;
             let scan_lattice = (lattice_dim as u64 + iteration)  as usize * (attempt);
-            let deepscan_lattice = (lattice_dim as u64 + iteration*2) as usize * (attempt);
+            let deepscan_lattice = (lattice_dim as u64 + iteration * 5) as usize * (attempt);
             let mut pix_count = 0;
             for pixel in canvas.iter(){
                 if canvas.get_pixel(&pixel) != 0 {
@@ -228,7 +228,7 @@ fn clarify<F>(canvas: &mut Canvas, f: &F, lattice_dim:usize) -> u64 where
                     }
                 }
             }
-            println!("Scanned {} pixels for new roots, found: {} at lattice {}", pix_count, update_count, scan_lattice);
+            println!("Scanned {} neighbors of all old roots, found {} new roots, lattice {}", pix_count, update_count, scan_lattice);
 
             while last_roots.len() !=0 {
                 let mut pix_count = 0;
@@ -249,10 +249,10 @@ fn clarify<F>(canvas: &mut Canvas, f: &F, lattice_dim:usize) -> u64 where
                         }
                     }
                 }
-                println!("Deep scan {} pixels (neighbors of {} new roots), found {} more new neighbor roots at lattice {}", pix_count, last_roots.len(), new_roots.len(), deepscan_lattice);
+                println!("Deep scanned {} pixels (neighbors of {} new roots), found {} more new neighbor roots at lattice {}", pix_count, last_roots.len(), new_roots.len(), deepscan_lattice);
                 last_roots = new_roots.clone();
             }
-            println!("Updating: iteration {}, found {} additional pixels", iteration, update_count);
+            println!("Finished iteration {}, found {} additional pixels", iteration, update_count);
         }
         update_count=-1;
     }
@@ -289,6 +289,12 @@ fn main() {
     // let picture = (|x:Float, y:Float| (x*x+y*y)*sin(x*y)-PI, 1.92*470.0, 1.08*470.0, "sea of solicitude");
     // let picture = (|x:Float, y:Float| sin(x*cos(y))-cos(y*sin(x)), 1.92*60.0, 1.08*60.0, "tarnished lace");
     // let picture = (|x:Float, y:Float| sin(x/y)-cos(y/x)+x-y, 1.92*2.8, 1.08*2.8, "trimed knot");
+    // let picture = (|x:Float, y:Float| (x+sin(1.0/x)-1.0/sin(x))/10.0-(y/x).exp().sin(), 1.92*3.0, 1.08*12.0, "?");
+    // let picture = (|x:Float, y:Float| x/sin(y)-y*y*cos(x), 1.92*64.0, 1.08*64.0, "square soap");
+    // let picture = (|x:Float, y:Float| sin(x+2.0*y)-cos(x*y*y), 1.92*32.0, 1.08*8.0, "?");
+    // let picture = (|x:Float, y:Float| (y*y+x*x-(1.0-0.2*(x/y).atan()).sin()), 1.92*4.0, 1.08*4.0, "?");
+    // let picture = (|x:Float, y:Float| (sin(y)+sin(x+y)+sin(x)-((x/y).atan()).sin()), 1.92*200.0, 1.08*200.0, "!");
+    let picture = (|x:Float, y:Float| (sin(y)+cos(x+y)+sin(x)-((x/y).atan()).cos()), 1.92*256.0, 1.08*256.0, "circle doodling");
     let mut canvas = Canvas::new(
         1920,1080,
         picture.1, picture.2,
@@ -296,10 +302,17 @@ fn main() {
     );
     let now = Instant::now();
     render(&mut canvas, &picture.0, 2);
-    println!("Rendered in {:#?}, {} roots", now.elapsed(), canvas.roots());
+    let stage_1_roots = canvas.roots();
+    println!("Rendered in {:#?}, {} roots", now.elapsed(), stage_1_roots);
     up_render(&mut canvas, &picture.0, 7);
-    println!("Rendered and uprendered in {:#?}, {}", now.elapsed(), canvas.roots());
-    // clarify(&mut canvas, &picture.0, 11);
-    println!("Finish rendering and updates in {:#?}, found {} roots", now.elapsed(), canvas.roots());
+    let stage_2_roots = canvas.roots();
+    println!("Rendered and uprendered in {:#?}, {}", now.elapsed(), stage_2_roots);
+    if stage_1_roots != stage_2_roots{
+        println!("Going for root hunt...");
+        // clarify(&mut canvas, &picture.0, 14);
+        println!("Finish rendering and updates in {:#?}, found {} roots", now.elapsed(), canvas.roots());
+    }else{
+        println!("No new roots found, enough.");
+    }
     show_and_wait(canvas);
 }
