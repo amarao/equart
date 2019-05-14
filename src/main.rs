@@ -143,14 +143,13 @@ impl Canvas{
     }
 }
 
-fn copy_to_clipboard(canvas: &Canvas){
-    // let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
-    // ctx.set_contents(&canvas.img);
+fn copy_to_clipboard(img: &Vec<u32>, x:usize, y:usize){
+    let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
     println!("encoding start");
-    let png = png_encode(&canvas.img, canvas.pixel_x, canvas.pixel_y).unwrap();
-    // use std::mem::size_of_val;
+    let png = png_encode(img, x, y).unwrap();
     println!("encoding end, size: {}", png.len());
     println!("Copying to clipboard");
+    // ctx.set_contents(png);
 }
 
 fn show_and_wait(canvas:Canvas){
@@ -166,7 +165,7 @@ fn show_and_wait(canvas:Canvas){
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         if window.is_key_down(Key::Enter){
-            copy_to_clipboard(&canvas)
+            copy_to_clipboard(&new_img, canvas.pixel_x, canvas.pixel_y);
         }
         let start = Instant::now();
         window.update();
@@ -261,11 +260,11 @@ fn clarify<F>(canvas: &mut Canvas, f: &F, lattice_dim:usize) -> u64 where
 }
 
 fn main() {
-    // let picture = (
-    //     |x:Float, y:Float| x.sin()-y,
-    //     1.92*2.0,
-    //     1.08*2.0,
-    // );
+    let picture = (
+        |x:Float, y:Float| x.sin()-y,
+        1.92*2.0,
+        1.08*2.0,
+    );
     // let picture = (
     //     |x:Float ,y:Float| (x*x).sin() - (y*y).cos(),
     //     1.92*20.0,
@@ -278,7 +277,7 @@ fn main() {
     //     1.08*64.0,
     //     "wiggle-squares"
     // );
-    let picture = (|x:Float, y:Float| sin(1.0/x)-y, 1.92/100.0, 1.08*2.0, "test");
+    // let picture = (|x:Float, y:Float| sin(1.0/x)-y, 1.92/100.0, 1.08*2.0, "test");
     // let picture = (|x:Float, y:Float| sin(1.0/x)-sin(1.0/y), 1.92*5.0, 1.08/5.0, "curve in cross");
     // let picture = (|x:Float, y:Float| sin(x)-cos(y)-sin(x/cos(y)), 1.92*100.0, 1.08*11.8, "beads");
     // let picture = (|x:Float, y:Float| sin(x*x/y)-cos(y*y/x), 1.92*100.0, 1.08*100.0, "butterfly");
@@ -300,7 +299,7 @@ fn main() {
     println!("Rendered in {:#?}, {} roots", now.elapsed(), canvas.roots());
     up_render(&mut canvas, &picture.0, 7);
     println!("Rendered and uprendered in {:#?}, {}", now.elapsed(), canvas.roots());
-    clarify(&mut canvas, &picture.0, 11);
+    // clarify(&mut canvas, &picture.0, 11);
     println!("Finish rendering and updates in {:#?}, found {} roots", now.elapsed(), canvas.roots());
     show_and_wait(canvas);
 }
