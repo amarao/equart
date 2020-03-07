@@ -124,6 +124,15 @@ pub mod pix {
         pub fn roots(&self) -> u64{
             self.img.iter().filter(|&x| *x==0).count() as u64
         }
+        pub fn inverted_clone(&self, color: u32) -> Vec<u32>{
+            let mut new_img = Vec::with_capacity(self.pixel_x * self.pixel_y);
+            for y in 0..self.pixel_y {
+                for x in 0..self.pixel_x {
+                    new_img.push((self.img[(self.pixel_y - y - 1) * self.pixel_x + x] as u32) * color);
+                }
+            }
+            new_img
+        }
     }
 
 

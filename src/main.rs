@@ -33,7 +33,7 @@ fn show_and_wait(canvas:Canvas){
                                  canvas.pixel_y,
                                  WindowOptions::default()
                                  ).unwrap();
-    let new_img: Vec<u32> = canvas.img.iter().map(|x| ((*x).clone() as u32)*0x0101_0101).collect();
+    let new_img: Vec<u32> = canvas.inverted_clone(0x0101_0101);
     // println!("Drawing {} roots",canvas.roots());
     std::thread::sleep(Duration::new(0,150_000_000));
     window.update_with_buffer(&new_img).unwrap();
@@ -169,7 +169,8 @@ fn main() {
     // let picture = (|x:Float, y:Float| sin(x+2.0*y)-cos(x*y*y), 1.92*32.0, 1.08*8.0, "?");
     // let picture = (|x:Float, y:Float| (y*y+x*x-(1.0-0.2*(x/y).atan()).sin()), 1.92*4.0, 1.08*4.0, "?");
     // let picture = (|x:Float, y:Float| (sin(y)+sin(x+y)+sin(x)-((x/y).atan()).sin()), 1.92*200.0, 1.08*200.0, "!");
-    let picture = (|x:Float, y:Float| (sin(y)+cos(x+y)+sin(x)-((x/y).atan()).cos()), 1.92*256.0, 1.08*256.0, "circle doodling");
+    // let picture = (|x:Float, y:Float| (sin(y)+cos(x+y)+sin(x)-((x/y).atan()).cos()), 1.92*256.0, 1.08*256.0, "circle doodling");
+    let picture = (|x:Float, y:Float| sin(x)*x/2.0 + x - y, 1920.0, 1080.0, "inverse test");
     let mut canvas = Canvas::new(
         1920,1080,
         picture.1, picture.2,
