@@ -14,18 +14,18 @@ pub mod pix {
     }
 
     impl  Pixel {
-        pub fn as_pixel(&self, canvas: &Canvas) -> [i64; 2]{
+        fn as_pixel(&self, canvas: &Canvas) -> [i64; 2]{
             let row = self.index as i64 / canvas.pixel_x as i64 - canvas.zero_y as i64;
             let column = self.index as i64 %  canvas.pixel_x  as i64 - canvas.zero_x as i64;
             [row, column]
         }
-        pub fn as_cartesian(&self, canvas: &Canvas) -> [Float; 2]{
+        fn as_cartesian(&self, canvas: &Canvas) -> [Float; 2]{
             let [row, column] = self.as_pixel(canvas);
             let y = (row as Float) * canvas.pixel_size_y;
             let x = (column as Float) * canvas.pixel_size_x;
             [x,  y]
         }
-        pub fn iterate_lattice_as_cartesian(&self, canvas: &Canvas, lattice_dim:usize) -> impl Iterator<Item =[Float;2]> {
+        fn iterate_lattice_as_cartesian(&self, canvas: &Canvas, lattice_dim:usize) -> impl Iterator<Item =[Float;2]> {
             let [x,y] = self.as_cartesian(canvas);
             let (dx, dy) = (canvas.pixel_size_x, canvas.pixel_size_y);
             let subcanvas = (lattice_dim - 1) as Float;
@@ -61,10 +61,10 @@ pub mod pix {
         pub img: Vec<PixelColor>,
         pub pixel_x: usize,
         pub pixel_y: usize,
-        pub pixel_size_x: Float,
-        pub pixel_size_y: Float,
-        pub zero_x: usize,
-        pub zero_y: usize,
+        pixel_size_x: Float,
+        pixel_size_y: Float,
+        zero_x: usize,
+        zero_y: usize,
     }
 
     impl Canvas{
