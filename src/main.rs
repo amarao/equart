@@ -58,8 +58,7 @@ fn show_and_wait(cnv_in:Canvas){
     let opengl = OpenGL::V3_2;
     let (width, height) = (cnv_in.pixel_x as u32, cnv_in.pixel_y as u32);
     let mut window: PistonWindow =
-        WindowSettings::new("piston: paint", (width, height))
-        .title("equart".to_string())
+        WindowSettings::new("equart", (width, height))
         .exit_on_esc(true)
         .graphics_api(opengl)
         .build()
