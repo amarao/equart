@@ -293,6 +293,7 @@ dependencies = [
  "image",
  "itertools",
  "lodepng",
+ "piston",
  "piston_window",
  "vecmath",
 ]

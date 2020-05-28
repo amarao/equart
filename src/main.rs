@@ -19,6 +19,7 @@ extern crate image as im;
 extern crate vecmath;
 
 use piston_window::*;
+use piston::event_loop::*;
 use vecmath::*;
 
 fn copy_to_clipboard(img: &Vec<u32>, x:usize, y:usize){
@@ -52,6 +53,8 @@ fn copy_to_clipboard(img: &Vec<u32>, x:usize, y:usize){
 //     }
 // }
 fn show_and_wait(cnv_in:Canvas){
+    // let FPS:u64 = 60;
+    // let frame_delay = Duration::new(0,(1_000_000_000/FPS) as u32);
     let opengl = OpenGL::V3_2;
     let (width, height) = (cnv_in.pixel_x as u32, cnv_in.pixel_y as u32);
     let mut window: PistonWindow =
@@ -61,7 +64,6 @@ fn show_and_wait(cnv_in:Canvas){
         .graphics_api(opengl)
         .build()
         .unwrap();
-    window.set_max_fps(1);
 
     let mut canvas = im::ImageBuffer::from_fn(width, height, |x, y| {
             let v = cnv_in.img[(x + y * cnv_in.pixel_x as u32) as usize];
@@ -79,7 +81,8 @@ fn show_and_wait(cnv_in:Canvas){
 
 
     texture.update(&mut texture_context, &canvas).unwrap();
-    while let Some(e) = window.next() {
+    let mut events = Events::new(EventSettings::new().lazy(true));
+    while let Some(e) = events.next(&mut window) {
         if let Some(_) = e.render_args() {
             window.draw_2d(&e, |c, g, device| {
                 // Update texture before rendering.
