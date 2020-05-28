@@ -67,7 +67,6 @@ fn show_and_wait(cnv_in:Canvas){
             let v = cnv_in.img[(x + y * cnv_in.pixel_x as u32) as usize];
             im::Rgba([v,v,v, 255])
     });
-    // let canvas = im::ImageBuffer::from_raw(cnv_in.pixel_x as u32, cnv_in.pixel_y as u32, cnv_in.img).unwrap();
     let mut texture_context = TextureContext {
         factory: window.factory.clone(),
         encoder: window.factory.create_command_buffer().into()
@@ -79,15 +78,14 @@ fn show_and_wait(cnv_in:Canvas){
         ).unwrap();
 
 
-            // canvas.put_pixel(x, y, color);
     texture.update(&mut texture_context, &canvas).unwrap();
     while let Some(e) = window.next() {
         if let Some(_) = e.render_args() {
             window.draw_2d(&e, |c, g, device| {
                 // Update texture before rendering.
-                texture_context.encoder.flush(device);
+                // texture_context.encoder.flush(device);
 
-                clear([1.0; 4], g);
+                // clear([1.0; 4], g);
                 image(&texture, c.transform, g);
             });
         }
