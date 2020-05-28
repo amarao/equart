@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-extern crate minifb;
 extern crate clipboard;
 extern crate lodepng;
 
@@ -7,16 +6,20 @@ use itertools::Itertools;
 use std::time::{Duration, Instant};
 use std::thread::sleep;
 use std::cmp;
-use minifb::{Key, WindowOptions, Window};
 use std::f32::consts::*;
 
 use clipboard::ClipboardProvider;
 use clipboard::ClipboardContext;
 
 use lodepng::encode32 as png_encode;
-use druw::pix::*;
+use equart::pix::*;
 
+extern crate piston_window;
+extern crate image as im;
+extern crate vecmath;
 
+use piston_window::*;
+use vecmath::*;
 
 fn copy_to_clipboard(img: &Vec<u32>, x:usize, y:usize){
     let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
@@ -27,25 +30,67 @@ fn copy_to_clipboard(img: &Vec<u32>, x:usize, y:usize){
     // ctx.set_contents(png);
 }
 
-fn show_and_wait(canvas:Canvas){
-    let mut window = Window::new("Test - ESC to exit",
-                                 canvas.pixel_x,
-                                 canvas.pixel_y,
-                                 WindowOptions::default()
-                                 ).unwrap();
-    let new_img: Vec<u32> = canvas.inverted_clone(0x0101_0101);
-    // println!("Drawing {} roots",canvas.roots());
-    std::thread::sleep(Duration::new(0,150_000_000));
-    window.update_with_buffer(&new_img).unwrap();
+// fn show_and_wait(canvas:Canvas){
+//     let mut window = Window::new("Test - ESC to exit",
+//                                  canvas.pixel_x,
+//                                  canvas.pixel_y,
+//                                  WindowOptions::default()
+//                                  ).unwrap();
+//     let new_img: Vec<u32> = canvas.inverted_clone(0x0101_0101);
+//     // println!("Drawing {} roots",canvas.roots());
+//     std::thread::sleep(Duration::new(0,150_000_000));
+//     window.update_with_buffer(&new_img).unwrap();
+//
+//     while window.is_open() && !window.is_key_down(Key::Escape) {
+//         if window.is_key_down(Key::Enter){
+//             copy_to_clipboard(&new_img, canvas.pixel_x, canvas.pixel_y);
+//         }
+//         let start = Instant::now();
+//         window.update();
+//         let spend = start.elapsed();
+//         sleep(Duration::new(0,1000000000/60).checked_sub(spend).unwrap_or(Duration::new(0,0)));
+//     }
+// }
+fn show_and_wait(cnv_in:Canvas){
+    let opengl = OpenGL::V3_2;
+    let (width, height) = (cnv_in.pixel_x as u32, cnv_in.pixel_y as u32);
+    let mut window: PistonWindow =
+        WindowSettings::new("piston: paint", (width, height))
+        .title("equart".to_string())
+        .exit_on_esc(true)
+        .graphics_api(opengl)
+        .build()
+        .unwrap();
+    window.set_max_fps(1);
 
-    while window.is_open() && !window.is_key_down(Key::Escape) {
-        if window.is_key_down(Key::Enter){
-            copy_to_clipboard(&new_img, canvas.pixel_x, canvas.pixel_y);
+    let mut canvas = im::ImageBuffer::from_fn(width, height, |x, y| {
+            let v = cnv_in.img[(x + y * cnv_in.pixel_x as u32) as usize];
+            im::Rgba([v,v,v, 255])
+    });
+    // let canvas = im::ImageBuffer::from_raw(cnv_in.pixel_x as u32, cnv_in.pixel_y as u32, cnv_in.img).unwrap();
+    let mut texture_context = TextureContext {
+        factory: window.factory.clone(),
+        encoder: window.factory.create_command_buffer().into()
+    };
+    let mut texture: G2dTexture = Texture::from_image(
+            &mut texture_context,
+            &canvas,
+            &TextureSettings::new()
+        ).unwrap();
+
+
+            // canvas.put_pixel(x, y, color);
+    texture.update(&mut texture_context, &canvas).unwrap();
+    while let Some(e) = window.next() {
+        if let Some(_) = e.render_args() {
+            window.draw_2d(&e, |c, g, device| {
+                // Update texture before rendering.
+                texture_context.encoder.flush(device);
+
+                clear([1.0; 4], g);
+                image(&texture, c.transform, g);
+            });
         }
-        let start = Instant::now();
-        window.update();
-        let spend = start.elapsed();
-        sleep(Duration::new(0,1000000000/60).checked_sub(spend).unwrap_or(Duration::new(0,0)));
     }
 }
 
