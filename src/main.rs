@@ -27,8 +27,6 @@ fn draw_and_calc(){
     let X: u32 = 1920;
     let Y: u32 = 1080;
 
-
-
     let opengl = OpenGL::V3_2;
     let mut window: PistonWindow =
         WindowSettings::new("equart", (X, Y))
@@ -49,6 +47,8 @@ fn draw_and_calc(){
         picture.1, picture.2,
         1920/2, 1080/2
     );
+    let mut stage_1_roots = 0;
+    let mut stage_2_roots = 0;
     let mut events = Events::new(EventSettings::new().lazy(false));
     while let Some(e) = events.next(&mut window) {
         if let Some(_) = e.render_args() {
@@ -62,21 +62,31 @@ fn draw_and_calc(){
                         render(&mut cnv, &picture.0, 2);
                         stage = 2;
                     },
-                _ => {
+                2 => {
                     let stage_1_roots = cnv.roots();
                     println!("Rendered in {:#?}, {} roots", now.elapsed(), stage_1_roots);
+                    stage = 3;
+
+                }
+                3 => {
                     up_render(&mut cnv, &picture.0, 7);
+                    println!("Uprender in {:#?}", now.elapsed());
+                    stage = 4;
+                }
+                4 => {
                     let stage_2_roots = cnv.roots();
-                    println!("Rendered and uprendered in {:#?}, {}", now.elapsed(), stage_2_roots);
                     if stage_1_roots != stage_2_roots{
+                        stage_1_roots = stage_2_roots;
                         println!("Going for root hunt...");
                         // clarify(&mut canvas, &picture.0, 14);
                         println!("Finish rendering and updates in {:#?}, found {} roots", now.elapsed(), cnv.roots());
                     }else{
                         println!("No new roots found, enough.");
+                        events.set_lazy(true);
+                        stage = 5;
                     }
-                    events.set_lazy(true);
                 }
+                _ => {}
             }
             let canvas = im::ImageBuffer::from_fn(X, Y, |x, y| {
                     let v = cnv.img[(x + y * cnv.pixel_x as u32) as usize];
