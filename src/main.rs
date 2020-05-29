@@ -22,35 +22,72 @@ use piston::event_loop::Events;
 //     // ctx.set_contents(png);
 // }
 
-fn show_and_wait(cnv_in:Canvas){
+
+fn draw_and_calc(){
+    let X: u32 = 1920;
+    let Y: u32 = 1080;
+
+
+
     let opengl = OpenGL::V3_2;
-    let (width, height) = (cnv_in.pixel_x as u32, cnv_in.pixel_y as u32);
     let mut window: PistonWindow =
-        WindowSettings::new("equart", (width, height))
+        WindowSettings::new("equart", (X, Y))
         .exit_on_esc(true)
         .graphics_api(opengl)
         .build()
         .unwrap();
 
-    let canvas = im::ImageBuffer::from_fn(width, height, |x, y| {
-            let v = cnv_in.img[(x + y * cnv_in.pixel_x as u32) as usize];
-            im::Rgba([v,v,v, 255])
-    });
     let mut texture_context = TextureContext {
         factory: window.factory.clone(),
         encoder: window.factory.create_command_buffer().into()
     };
-    let mut texture: G2dTexture = Texture::from_image(
-            &mut texture_context,
-            &canvas,
-            &TextureSettings::new()
-        ).unwrap();
 
-
-    texture.update(&mut texture_context, &canvas).unwrap();
-    let mut events = Events::new(EventSettings::new().lazy(true));
+    let mut stage = 0;
+    let picture = (|x:Float, y:Float| sin(x)*x/2.0 + x - y, X as f32, Y as f32, "inverse test");
+    let mut cnv = Canvas::new(
+        X as usize, Y as usize,
+        picture.1, picture.2,
+        1920/2, 1080/2
+    );
+    let mut events = Events::new(EventSettings::new().lazy(false));
     while let Some(e) = events.next(&mut window) {
         if let Some(_) = e.render_args() {
+            let now = Instant::now();
+            println!("Stage {}", stage);
+            match stage {
+                0 => {
+                    stage = 1;
+                }
+                1 => {
+                        render(&mut cnv, &picture.0, 2);
+                        stage = 2;
+                    },
+                _ => {
+                    let stage_1_roots = cnv.roots();
+                    println!("Rendered in {:#?}, {} roots", now.elapsed(), stage_1_roots);
+                    up_render(&mut cnv, &picture.0, 7);
+                    let stage_2_roots = cnv.roots();
+                    println!("Rendered and uprendered in {:#?}, {}", now.elapsed(), stage_2_roots);
+                    if stage_1_roots != stage_2_roots{
+                        println!("Going for root hunt...");
+                        // clarify(&mut canvas, &picture.0, 14);
+                        println!("Finish rendering and updates in {:#?}, found {} roots", now.elapsed(), cnv.roots());
+                    }else{
+                        println!("No new roots found, enough.");
+                    }
+                    events.set_lazy(true);
+                }
+            }
+            let canvas = im::ImageBuffer::from_fn(X, Y, |x, y| {
+                    let v = cnv.img[(x + y * cnv.pixel_x as u32) as usize];
+                    im::Rgba([v,v,v, 255])
+            });
+            let mut texture: G2dTexture = Texture::from_image(
+                    &mut texture_context,
+                    &canvas,
+                    &TextureSettings::new()
+                ).unwrap();
+            texture.update(&mut texture_context, &canvas).unwrap();
             window.draw_2d(&e, |c, g, _device| {
                 // Update texture before rendering.
                 // texture_context.encoder.flush(_device);
@@ -60,7 +97,9 @@ fn show_and_wait(cnv_in:Canvas){
             });
         }
     }
+
 }
+
 
 fn render<F>(canvas: &mut Canvas, f: &F, lattice_dim: usize) where
     F: Fn(Float, Float) -> Float
@@ -178,25 +217,5 @@ fn main() {
     // let picture = (|x:Float, y:Float| (y*y+x*x-(1.0-0.2*(x/y).atan()).sin()), 1.92*4.0, 1.08*4.0, "?");
     // let picture = (|x:Float, y:Float| (sin(y)+sin(x+y)+sin(x)-((x/y).atan()).sin()), 1.92*200.0, 1.08*200.0, "!");
     // let picture = (|x:Float, y:Float| (sin(y)+cos(x+y)+sin(x)-((x/y).atan()).cos()), 1.92*256.0, 1.08*256.0, "circle doodling");
-    let picture = (|x:Float, y:Float| sin(x)*x/2.0 + x - y, 1920.0, 1080.0, "inverse test");
-    let mut canvas = Canvas::new(
-        1920,1080,
-        picture.1, picture.2,
-        1920/2, 1080/2
-    );
-    let now = Instant::now();
-    render(&mut canvas, &picture.0, 2);
-    let stage_1_roots = canvas.roots();
-    println!("Rendered in {:#?}, {} roots", now.elapsed(), stage_1_roots);
-    up_render(&mut canvas, &picture.0, 7);
-    let stage_2_roots = canvas.roots();
-    println!("Rendered and uprendered in {:#?}, {}", now.elapsed(), stage_2_roots);
-    if stage_1_roots != stage_2_roots{
-        println!("Going for root hunt...");
-        // clarify(&mut canvas, &picture.0, 14);
-        println!("Finish rendering and updates in {:#?}, found {} roots", now.elapsed(), canvas.roots());
-    }else{
-        println!("No new roots found, enough.");
-    }
-    show_and_wait(canvas);
+    draw_and_calc();
 }
