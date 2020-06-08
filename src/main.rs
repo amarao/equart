@@ -58,24 +58,27 @@ fn draw_and_calc(){
     while let Some(e) = events.next(&mut window) {
         if let Some(_) = e.render_args() {
             let now = Instant::now();
-            println!("Stage {}", stage);
             match stage {
                 0 => { },
                 _ => {
+                    println!("Stage {}", stage);
+                    println!("Bruteforcing with lattice {}x{}", lattice_dim, lattice_dim);
                     render(&mut cnv, &picture.0, 2, max(0, 200 - lattice_dim));
                     new_roots = cnv.roots();
-                    if let found_roots = new_roots > old_roots {
-                        println!("Found {} new roots at lattice {}x{}", found_roots, lattice_dim, lattice_dim);
+                    let found_roots = new_roots - old_roots;
+                    if found_roots  > 0 {
+                        println!("Found {} new roots.", found_roots);
                         lattice_dim = lattice_dim * 2 + 1;
                         old_roots = new_roots;
+                        stage = stage + 1;
                     }
                     else {
                         events.set_lazy(true);
                         println!("Done rendering, lazy mode activated");
+                        stage = 0;
                     }
                 }
             }
-            stage = stage + 1;
             let canvas = im::ImageBuffer::from_fn(X, Y, |x, y| {
                     let v = cnv.img[(x + y * cnv.pixel_x as u32) as usize];
                     im::Rgba([v,v,v, 255])
