@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use std::time::Instant;
-use std::cmp;
+// use std::time::Instant;
+// use std::cmp;
 use std::cmp::max as max;
 
 // use lodepng::encode32 as png_encode;
@@ -23,6 +23,20 @@ use piston::event_loop::Events;
 //     // ctx.set_contents(png);
 // }
 
+// type RootFunc = Fn(f32, f32) ->f32 ;
+
+struct Picture<F: Fn(f32,f32)-> f32>{
+    func:F,
+    float_x: f32,
+    float_y: f32
+}
+
+impl<F: Fn(f32, f32)->f32>  Picture<F> {
+    fn new (func: F, float_x: f32, float_y: f32) -> Self
+    {
+        Self{func:func, float_x:float_x, float_y:float_y}
+    }
+}
 
 fn draw_and_calc(){
     let X: u32 = 1920;
@@ -41,29 +55,31 @@ fn draw_and_calc(){
         encoder: window.factory.create_command_buffer().into()
     };
 
-
-
-    let picture = (|x:Float, y:Float| sin(x)*x/2.0 + x - y, X as f32, Y as f32, "inverse test");
-
+    // let picture = (|x:Float, y:Float| sin(x)*x/2.0 + x - y, X as f32, Y as f32, "inverse test");
+    let picture = Picture::new(
+        |x:Float, y:Float| sin(x)*x/2.0 + x - y,
+        X as f32,
+        Y as f32
+    );
     let mut cnv = Canvas::new(
         X as usize, Y as usize,
-        picture.1, picture.2,
+        picture.float_x, picture.float_y,
         1920/2, 1080/2
     );
     let mut stage = 1;
     let mut old_roots = 0;
-    let mut new_roots = 0;
+    let mut new_roots;
     let mut events = Events::new(EventSettings::new().lazy(false));
     let mut lattice_dim = 5;
     while let Some(e) = events.next(&mut window) {
         if let Some(_) = e.render_args() {
-            let now = Instant::now();
+            // let now = Instant::now();
             match stage {
                 0 => { },
                 _ => {
                     println!("Stage {}", stage);
                     println!("Bruteforcing with lattice {}x{}", lattice_dim, lattice_dim);
-                    render(&mut cnv, &picture.0, 2, max(0, 200 - lattice_dim));
+                    render(&mut cnv, &picture.func, 2, max(0, 200 - lattice_dim));
                     new_roots = cnv.roots();
                     let found_roots = new_roots - old_roots;
                     println!("Found {} new roots.", found_roots);
