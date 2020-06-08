@@ -54,7 +54,7 @@ fn draw_and_calc(){
     let mut old_roots = 0;
     let mut new_roots = 0;
     let mut events = Events::new(EventSettings::new().lazy(false));
-    let mut lattice_dim = 2;
+    let mut lattice_dim = 5;
     while let Some(e) = events.next(&mut window) {
         if let Some(_) = e.render_args() {
             let now = Instant::now();
@@ -66,15 +66,15 @@ fn draw_and_calc(){
                     render(&mut cnv, &picture.0, 2, max(0, 200 - lattice_dim));
                     new_roots = cnv.roots();
                     let found_roots = new_roots - old_roots;
+                    println!("Found {} new roots.", found_roots);
                     if found_roots  > 0 {
-                        println!("Found {} new roots.", found_roots);
                         lattice_dim = lattice_dim * 2 + 1;
                         old_roots = new_roots;
                         stage = stage + 1;
                     }
                     else {
                         events.set_lazy(true);
-                        println!("Done rendering, lazy mode activated");
+                        println!("Done rendering, activating lazy mode.");
                         stage = 0;
                     }
                 }
