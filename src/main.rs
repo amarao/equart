@@ -2,6 +2,7 @@
 
 use std::time::Instant;
 use std::cmp;
+use std::cmp::max as max;
 
 // use lodepng::encode32 as png_encode;
 use equart::pix::*;
@@ -40,7 +41,7 @@ fn draw_and_calc(){
         encoder: window.factory.create_command_buffer().into()
     };
 
-    let mut stage = 0;
+
 
     let picture = (|x:Float, y:Float| sin(x)*x/2.0 + x - y, X as f32, Y as f32, "inverse test");
 
@@ -49,36 +50,32 @@ fn draw_and_calc(){
         picture.1, picture.2,
         1920/2, 1080/2
     );
-    let mut stage_1_roots = 0;
-    let mut stage_2_roots = 0;
+    let mut stage = 1;
+    let mut old_roots = 0;
+    let mut new_roots = 0;
     let mut events = Events::new(EventSettings::new().lazy(false));
+    let mut lattice_dim = 2;
     while let Some(e) = events.next(&mut window) {
         if let Some(_) = e.render_args() {
             let now = Instant::now();
             println!("Stage {}", stage);
             match stage {
-                0 => {
+                0 => { },
+                _ => {
+                    render(&mut cnv, &picture.0, 2, max(0, 200 - lattice_dim));
+                    new_roots = cnv.roots();
+                    if let found_roots = new_roots > old_roots {
+                        println!("Found {} new roots at lattice {}x{}", found_roots, lattice_dim, lattice_dim);
+                        lattice_dim = lattice_dim * 2 + 1;
+                        old_roots = new_roots;
+                    }
+                    else {
+                        events.set_lazy(true);
+                        println!("Done rendering, lazy mode activated");
+                    }
                 }
-                1 => {
-                    render(&mut cnv, &picture.0, 2, 200);
-                },
-                2 => {
-                    render(&mut cnv, &picture.0, 7, 100);
-                    println!("Uprender in {:#?}", now.elapsed());
-                    let stage_1_roots = cnv.roots();
-                    println!("Rendered in {:#?}, {} roots", now.elapsed(), stage_1_roots);
-                }
-                3 => {
-                    render(&mut cnv, &picture.0, 13, 0);
-                    println!("Uprender in {:#?}", now.elapsed());
-                }
-                4 => {
-                    events.set_lazy(true);
-                    println!("Done rendering, lazy mode activated");
-                }
-                _ => {}
             }
-            stage += 1;
+            stage = stage + 1;
             let canvas = im::ImageBuffer::from_fn(X, Y, |x, y| {
                     let v = cnv.img[(x + y * cnv.pixel_x as u32) as usize];
                     im::Rgba([v,v,v, 255])
