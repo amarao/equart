@@ -23,15 +23,13 @@ use piston::event_loop::Events;
 //     // ctx.set_contents(png);
 // }
 
-// type RootFunc = Fn(f32, f32) ->f32 ;
-
-struct Picture<F: Fn(f32,f32)-> f32>{
+struct VisualRelation<F: Fn(f32,f32)-> f32>{
     func:F,
     float_x: f32,
     float_y: f32
 }
 
-impl<F: Fn(f32, f32)->f32>  Picture<F> {
+impl<F: Fn(f32, f32)->f32>  VisualRelation<F> {
     fn new (func: F, float_x: f32, float_y: f32) -> Self
     {
         Self{func:func, float_x:float_x, float_y:float_y}
@@ -56,14 +54,14 @@ fn draw_and_calc(){
     };
 
     // let picture = (|x:Float, y:Float| sin(x)*x/2.0 + x - y, X as f32, Y as f32, "inverse test");
-    let picture = Picture::new(
+    let rel = VisualRelation::new(
         |x:Float, y:Float| sin(x)*x/2.0 + x - y,
         X as f32,
         Y as f32
     );
     let mut cnv = Canvas::new(
         X as usize, Y as usize,
-        picture.float_x, picture.float_y,
+        rel.float_x, rel.float_y,
         1920/2, 1080/2
     );
     let mut stage = 1;
@@ -79,7 +77,7 @@ fn draw_and_calc(){
                 _ => {
                     println!("Stage {}", stage);
                     println!("Bruteforcing with lattice {}x{}", lattice_dim, lattice_dim);
-                    render(&mut cnv, &picture.func, 2, max(0, 200 - lattice_dim));
+                    render(&mut cnv, &rel.func, 2, max(0, 200 - lattice_dim));
                     new_roots = cnv.roots();
                     let found_roots = new_roots - old_roots;
                     println!("Found {} new roots.", found_roots);
