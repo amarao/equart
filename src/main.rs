@@ -26,13 +26,25 @@ use piston::event_loop::Events;
 struct VisualRelation<F: Fn(f32,f32)-> f32>{
     func:F,
     float_x: f32,
-    float_y: f32
+    float_y: f32,
+    canvas: Option<Canvas>
 }
 
 impl<F: Fn(f32, f32)->f32>  VisualRelation<F> {
     fn new (func: F, float_x: f32, float_y: f32) -> Self
     {
-        Self{func:func, float_x:float_x, float_y:float_y}
+        Self{func:func, float_x:float_x, float_y:float_y, canvas:None}
+    }
+
+    fn add_canvas(& mut self, pix_x: u32, pix_y: u32, start_x: u32, start_y: u32){
+        self.canvas = Some(Canvas::new(
+            pix_x as usize,
+            pix_y as usize,
+            self.float_x,
+            self.float_y,
+            start_x as usize,
+            start_y as usize
+        ));
     }
 }
 
@@ -54,16 +66,17 @@ fn draw_and_calc(){
     };
 
     // let picture = (|x:Float, y:Float| sin(x)*x/2.0 + x - y, X as f32, Y as f32, "inverse test");
-    let rel = VisualRelation::new(
+    let mut rel = VisualRelation::new(
         |x:Float, y:Float| sin(x)*x/2.0 + x - y,
         X as f32,
         Y as f32
     );
-    let mut cnv = Canvas::new(
-        X as usize, Y as usize,
-        rel.float_x, rel.float_y,
-        1920/2, 1080/2
-    );
+    // let mut cnv = Canvas::new(
+    //     X as usize, Y as usize,
+    //     rel.float_x, rel.float_y,
+    //     1920/2, 1080/2
+    // );
+    rel.add_canvas(X, Y, X/2, Y/2);
     let mut stage = 1;
     let mut old_roots = 0;
     let mut new_roots;
@@ -77,8 +90,8 @@ fn draw_and_calc(){
                 _ => {
                     println!("Stage {}", stage);
                     println!("Bruteforcing with lattice {}x{}", lattice_dim, lattice_dim);
-                    render(&mut cnv, &rel.func, 2, max(0, 200 - lattice_dim));
-                    new_roots = cnv.roots();
+                    render(rel.canvas.as_mut().unwrap(), &rel.func, 2, max(0, 200 - lattice_dim));
+                    new_roots = rel.canvas.as_ref().unwrap().roots();
                     let found_roots = new_roots - old_roots;
                     println!("Found {} new roots.", found_roots);
                     if found_roots  > 0 {
@@ -94,7 +107,7 @@ fn draw_and_calc(){
                 }
             }
             let canvas = im::ImageBuffer::from_fn(X, Y, |x, y| {
-                    let v = cnv.img[(x + y * cnv.pixel_x as u32) as usize];
+                    let v = rel.canvas.as_ref().unwrap().img[(x + y * rel.canvas.as_ref().unwrap().pixel_x as u32) as usize];
                     im::Rgba([v,v,v, 255])
             });
             let mut texture: G2dTexture = Texture::from_image(
