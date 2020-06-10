@@ -36,7 +36,7 @@ impl<F: Fn(f32, f32)->f32>  VisualRelation<F> {
         Self{func:func, float_x:float_x, float_y:float_y, canvas:None}
     }
 
-    fn add_canvas(& mut self, pix_x: u32, pix_y: u32, start_x: u32, start_y: u32){
+    fn add_canvas(&mut self, pix_x: u32, pix_y: u32, start_x: u32, start_y: u32){
         self.canvas = Some(Canvas::new(
             pix_x as usize,
             pix_y as usize,
@@ -45,6 +45,17 @@ impl<F: Fn(f32, f32)->f32>  VisualRelation<F> {
             start_x as usize,
             start_y as usize
         ));
+    }
+    fn render(&mut self, lattice_dim:usize, color:PixelColor)
+    {
+        let mut canvas = self.canvas.as_mut().unwrap();
+        for pixel in canvas.iter(){
+            if canvas.img[pixel.index]!=0 as PixelColor {
+                if pixel.sign_change_on_lattice(&self.func, &canvas, lattice_dim){
+                    canvas.set_pixel(&pixel, color);
+                }
+            }
+        }
     }
 }
 
@@ -71,11 +82,6 @@ fn draw_and_calc(){
         X as f32,
         Y as f32
     );
-    // let mut cnv = Canvas::new(
-    //     X as usize, Y as usize,
-    //     rel.float_x, rel.float_y,
-    //     1920/2, 1080/2
-    // );
     rel.add_canvas(X, Y, X/2, Y/2);
     let mut stage = 1;
     let mut old_roots = 0;
@@ -90,7 +96,7 @@ fn draw_and_calc(){
                 _ => {
                     println!("Stage {}", stage);
                     println!("Bruteforcing with lattice {}x{}", lattice_dim, lattice_dim);
-                    render(rel.canvas.as_mut().unwrap(), &rel.func, 2, max(0, 200 - lattice_dim));
+                    rel.render(2, max(0, 200 - lattice_dim));
                     new_roots = rel.canvas.as_ref().unwrap().roots();
                     let found_roots = new_roots - old_roots;
                     println!("Found {} new roots.", found_roots);
@@ -130,17 +136,6 @@ fn draw_and_calc(){
 
 
 
-fn render<F>(canvas: &mut Canvas, f: &F, lattice_dim:usize, color:PixelColor) where
-    F: Fn(Float, Float) -> Float
-{
-    for pixel in canvas.iter(){
-        if canvas.img[pixel.index]!=0 as PixelColor {
-            if pixel.sign_change_on_lattice(f, &canvas, lattice_dim){
-                canvas.set_pixel(&pixel, color);
-            }
-        }
-    }
-}
 
 
 // fn clarify<F>(canvas: &mut Canvas, f: &F, lattice_dim:usize) -> u64 where
