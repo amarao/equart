@@ -2,34 +2,20 @@ use image as im;
 use piston_window as pw;
 use piston;
 use std::sync::mpsc::{SyncSender, Receiver};
-use equart::{BufferExtentions,Command,Thread};
+use equart::{BufferExtentions, Command, Threads};
 
 fn main() {
     let mut x = 800;
     let mut y  = 600;
     let cpus = num_cpus::get();
-    let color_bases = [
-        [255, 0, 0],
-        [0, 255, 0],
-        [255, 255, 0],
-        [0, 0,255],
-        [255, 0,255],
-        [0, 255,255],
-        [255, 255, 255]
-    ];
-    let mut control:Vec<Thread> = Vec::with_capacity(cpus);
 
-    for cpu in 0..cpus{
-        control.push(
-            Thread::new(
-                x,
-                y/cpus as u32,
-                move |draw_tx, control_rx|{
-                    println!("Spawning thread for cpu {}", cpu);
-                    calc(draw_tx, control_rx, x, y/cpus as u32, color_bases[cpu])
-            }
-        ));
-    }
+    let mut control = Threads::new(x, y, 
+        move |draw_tx, control_rx, cpu|{
+            println!("Spawning thread for cpu {}", cpu);
+            calc(draw_tx, control_rx, x, y/cpus as u32, cpu)
+        }
+    );
+    
     let mut window = match 
         pw::WindowSettings::new("equart", (x, y))
         .exit_on_esc(true)
@@ -55,15 +41,10 @@ fn main() {
         match e{
             piston::Event::Loop(piston::Loop::Idle(_)) => {},
             piston::Event::Loop(piston::Loop::AfterRender(_)) => {
-                for cpu in 0..cpus{
-                    control[cpu].request_update();
-                }
+                control.request_update();
             }
             piston::Event::Loop(piston::Loop::Render(_)) => {
-                let mut textures: Vec<piston_window::Texture<gfx_device_gl::Resources>> = Vec::new();
-                for cpu in 0..cpus {
-                    textures.push(control[cpu].texture(&mut window));
-                }
+                let textures = control.get_textures(& mut window);
                 window.draw_2d(
                     &e,
                     |context, graph_2d, _device| {
@@ -78,15 +59,10 @@ fn main() {
                         }
                     }
                 );
-                for _ in 0..cpus{
-                    drop(textures.pop());
-                }
-                drop(textures);
             }
+            
             piston::Event::Loop(piston::Loop::Update(_)) => {
-                for cpu in 0..cpus {
-                    control[cpu].recieve_update();
-                }
+                control.recieve_update();
             }
             piston::Event::Input(piston::Input::Resize(piston::ResizeArgs{window_size:_, draw_size:[mut new_x, mut new_y]}), _) => {
                 if new_x < 16 || new_y < 16 {
@@ -95,12 +71,7 @@ fn main() {
                     new_y = std::cmp::max(new_y, 16);
                 }
                 println!("Resize event: {}x{} (was {}x{})", new_x, new_y, x, y);
-                for cpu in 0..cpus{
-                    if control[cpu].resize(new_x, new_y/cpus as u32) == Err(()){
-                        println!("Unable to resize");
-                        return;
-                    }
-                }
+                control.resize(x, y);
                 x = new_x;
                 y = new_y;
             },
@@ -114,12 +85,22 @@ fn main() {
     }
 }
 
-fn calc(mut draw: SyncSender<equart::Buffer>, command: Receiver<Command>, max_x:u32, max_y:u32, color_base:[u8;3]){
+fn calc(mut draw: SyncSender<equart::Buffer>, command: Receiver<Command>, max_x:u32, max_y:u32, id: usize){
     let mut cur_x = max_x;
     let mut cur_y = max_y;
     let mut cnt: u64 = 0;
     let mut start = std::time::Instant::now();
     println!("new thread: {}x{}", max_x, max_y);
+    let color_bases = [
+        [255, 0, 0],
+        [255, 0,255],
+        [0, 255,255],
+        [255, 255, 0],
+        [0, 255, 0],
+        [0, 0,255],
+        [255, 255, 255]
+    ];
+    let color_base = color_bases[id % color_bases.len()];
     let mut buf = equart::Buffer::new(max_x, max_y);
     loop{
         match command.try_recv() {

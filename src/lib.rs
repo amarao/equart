@@ -54,30 +54,29 @@ pub enum Command {
 }
 
 #[derive(Debug)]
-pub struct Thread {
+struct PerThread {
     control_tx: SyncSender<Command>,
     draw_rx: Receiver<Buffer>,
     buf: Buffer
 }
 
-impl Thread {
-    pub fn new<C, T>(x: u32, y: u32, closure: C) -> Self 
+impl PerThread {
+    fn new<C, T>(x: u32, y: u32, closure: C, id: usize) -> Self 
     where
-        C: FnOnce(SyncSender<Buffer>,Receiver<Command>) -> T,
+        C: FnOnce(SyncSender<Buffer>,Receiver<Command>, usize) -> T,
         C: Send + 'static,
         T: Send + 'static
     {
         let (control_tx, control_rx): (SyncSender<Command>, Receiver<Command>) = sync_channel(1);
             let (draw_tx, draw_rx): (SyncSender<Buffer>, Receiver<Buffer>) = sync_channel(1);
-        
-        spawn(||{closure(draw_tx, control_rx);});
+        spawn(move ||{closure(draw_tx, control_rx, id)});
         Self{
             control_tx: control_tx,
             draw_rx: draw_rx,
             buf:Buffer::new(x, y)
         }
     }
-    pub fn recieve_update(&mut self){
+    fn recieve_update(&mut self){
             match self.draw_rx.try_recv(){
                 Ok(buf) =>{
                     self.buf=buf;
@@ -88,20 +87,20 @@ impl Thread {
                 }
         }
     }
-    pub fn request_update(&self){
+    fn request_update(&self){
         if let Err(err) =self.control_tx.try_send(Command::NeedUpdate()){
             println!("update request errorr: {}", err);
         }
     }
 
-    pub fn texture(
+    fn texture(
         &self,
         window: &mut piston_window::PistonWindow
     ) -> piston_window::Texture<gfx_device_gl::Resources>{
         self.buf.as_texture(window)
     }
 
-    pub fn resize(&mut self, new_x: u32, new_y: u32) -> Result<(), ()> {
+    fn resize(&mut self, new_x: u32, new_y: u32) -> Result<(), ()> {
         let (new_draw_tx, new_draw_rx): (SyncSender<Buffer>, Receiver<Buffer>) = sync_channel(1);
         if let Err(_) = self.control_tx.send(Command::NewResolution(
             new_x, new_y, new_draw_tx
@@ -110,5 +109,63 @@ impl Thread {
         self.buf = self.buf.scale(new_x, new_y);
         Ok(())
     }
+    
+}
+
+pub struct Threads {
+    cpus: usize,
+    threads: Vec<PerThread>
+}
+
+type Texture = piston_window::Texture<gfx_device_gl::Resources>;
+
+impl Threads {
+    pub fn new<C, T>(x: u32, y: u32, closure: C) -> Self
+    where 
+        C: FnOnce(SyncSender<Buffer>, Receiver<Command>, usize) -> T,
+        C: Send + 'static,
+        C: Copy,
+        T: Send + 'static
+    {
+        let cpus = num_cpus::get();
+        let mut retval: Self = Self{
+            cpus: cpus,
+            threads: Vec::with_capacity(cpus)
+        };
+        for cpu in 0..retval.cpus {
+            retval.threads.push(PerThread::new(x, y/retval.cpus as u32, closure, cpu));
+        }
+        retval
+    }
+
+    pub fn request_update(&self){
+        for cpu in 0..self.cpus {
+            self.threads[cpu].request_update();
+        }
+    }
+
+    pub fn recieve_update(&mut self){
+        for cpu in 0..self.cpus {
+            self.threads[cpu].recieve_update();
+        }
+    }
+
+    pub fn get_textures(&self, window: &mut piston_window::PistonWindow) -> Vec<Texture>{
+        let mut textures: Vec<piston_window::Texture<gfx_device_gl::Resources>> = Vec::with_capacity(self.cpus);
+        for cpu in 0..self.cpus {
+            textures.push(self.threads[cpu].texture(window));
+        }
+        textures
+    }
+
+    pub fn resize (&mut self, x: u32, y: u32){
+        for cpu in 0..self.cpus{
+            if self.threads[cpu].resize(x, y/self.cpus as u32) == Err(()){
+                println!("Unable to resize");
+                return;
+            }
+        }
+    }
+
     
 }
