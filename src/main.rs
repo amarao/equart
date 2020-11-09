@@ -81,7 +81,7 @@ fn main() {
 
 fn calc(mut draw: SyncSender<equart::Buffer>, command: Receiver<Command>, mut x:u32, mut y:u32, id: usize){
     let mut sec_cnt: u64 = 0;
-    let mut loop_cnt: u8 = 0;
+    let mut factor: u64 = 0xFEFABABE;
     let mut start = std::time::Instant::now();
     
     println!("new thread {}: {}x{}", id, x, y);
@@ -124,14 +124,18 @@ fn calc(mut draw: SyncSender<equart::Buffer>, command: Receiver<Command>, mut x:
             Err(_empty) => {
                 for i in 0..x {
                     sec_cnt +=1;
+                    factor ^= factor << 13;
+                    factor ^= factor >> 17;
+                    factor ^= factor << 5;
+                    let rnd = factor.to_be_bytes()[0];
                     buf.put_pixel(
                         i,
                         j,
                         im::Rgba([
-                            if color_base[0] > 0 { loop_cnt % color_base[0]} else {0},
-                            if color_base[1] > 0 { loop_cnt % color_base[1]} else {0},
-                            if color_base[2] > 0 { loop_cnt % color_base[2]} else {0},
-                            128,
+                            rnd & color_base[0],
+                            rnd & color_base[1],
+                            rnd & color_base[2],
+                            rnd,
 
                         ])
                     );
@@ -139,7 +143,6 @@ fn calc(mut draw: SyncSender<equart::Buffer>, command: Receiver<Command>, mut x:
                 j += 1;
                 if j >= y {
                     j = 0;
-                    loop_cnt += 1;
                 };
             }
         }
