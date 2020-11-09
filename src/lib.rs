@@ -114,7 +114,9 @@ impl PerThread {
 
 pub struct Threads {
     cpus: usize,
-    threads: Vec<PerThread>
+    threads: Vec<PerThread>,
+    x: u32,
+    y: u32
 }
 
 type Texture = piston_window::Texture<gfx_device_gl::Resources>;
@@ -130,7 +132,9 @@ impl Threads {
         let cpus = num_cpus::get();
         let mut retval: Self = Self{
             cpus: cpus,
-            threads: Vec::with_capacity(cpus)
+            threads: Vec::with_capacity(cpus),
+            x: x,
+            y: y
         };
         for cpu in 0..retval.cpus {
             retval.threads.push(PerThread::new(x, y/retval.cpus as u32, closure, cpu));
@@ -158,13 +162,21 @@ impl Threads {
         textures
     }
 
-    pub fn resize (&mut self, x: u32, y: u32){
+    pub fn resize (&mut self, mut x: u32, mut y: u32){
+        if x < 16 || y < 16 {
+            println!("New resolution is too low {}x{}", x, y);
+            x = std::cmp::max(x, 16);
+            y = std::cmp::max(y, 16);
+        }
+        println!("Resize event, from {}x{} to {}x{}.", self.x, self.y, x, y);
         for cpu in 0..self.cpus{
             if self.threads[cpu].resize(x, y/self.cpus as u32) == Err(()){
                 println!("Unable to resize");
                 return;
             }
         }
+        self.x = x;
+        self.y = y;
     }
 
     
