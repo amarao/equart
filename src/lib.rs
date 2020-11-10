@@ -57,11 +57,12 @@ pub enum Command {
 struct PerThread {
     control_tx: SyncSender<Command>,
     draw_rx: Receiver<Buffer>,
-    buf: Buffer
+    buf: Buffer,
+    pub span: f64
 }
 
 impl PerThread {
-    fn new<C, T>(x: u32, y: u32, closure: C, id: usize) -> Self 
+    fn new<C, T>(x: u32, y: u32, closure: C, id: usize, span: f64) -> Self 
     where
         C: FnOnce(SyncSender<Buffer>,Receiver<Command>, usize) -> T,
         C: Send + 'static,
@@ -74,7 +75,8 @@ impl PerThread {
         Self{
             control_tx: control_tx,
             draw_rx: draw_rx,
-            buf:Buffer::new(x, y)
+            buf:Buffer::new(x, y),
+            span: span
         }
     }
     fn recieve_update(&mut self) -> Result<(), ()>{
@@ -119,10 +121,20 @@ pub struct Threads {
     cpus: usize,
     threads: Vec<PerThread>,
     x: u32,
-    y: u32
+    y: u32,
 }
 
 type Texture = piston_window::Texture<gfx_device_gl::Resources>;
+
+pub struct TextureIterator<'a> {
+    threads_iter:std::slice::Iter<'a, PerThread>,
+    cpu: usize,
+    window: &'a mut piston_window::PistonWindow
+}
+
+fn span(cpu: usize, cpus: usize) -> f64 {
+    cpu as f64 / cpus as f64
+}
 
 impl Threads {
     pub fn new<C, T>(x: u32, y: u32, closure: C) -> Self
@@ -137,10 +149,16 @@ impl Threads {
             cpus: cpus,
             threads: Vec::with_capacity(cpus),
             x: x,
-            y: y
+            y: y,
         };
         for cpu in 0..retval.cpus {
-            retval.threads.push(PerThread::new(x, y/retval.cpus as u32, closure, cpu));
+            retval.threads.push(PerThread::new(
+                x,
+                y/retval.cpus as u32,
+                closure,
+                cpu,
+                span(cpu, cpus)
+            ));
         }
         retval
     }
@@ -170,7 +188,14 @@ impl Threads {
         }
         textures
     }
-
+    pub fn textures<'a>(&'a self, window: &'a mut piston_window::PistonWindow) -> TextureIterator{
+        TextureIterator{
+            threads_iter: self.threads.iter(),
+            cpu: 0,
+            window
+        }
+    }
+    
     pub fn resize (&mut self, mut x: u32, mut y: u32){
         if x < 16 || y < 16 {
             println!("New resolution is too low {}x{}", x, y);
@@ -188,5 +213,21 @@ impl Threads {
         self.y = y;
     }
 
-    
 }
+
+impl<'a> Iterator for TextureIterator <'a> {
+    type Item = Texture;
+    fn next(&mut self) -> Option<Texture>{
+        match self.threads_iter.next() {
+            None => None,
+            Some(thread) => Some(thread.texture(self.window))
+        }
+    }
+}
+// impl IntoIterator for Threads {
+//     type Item = Texture;
+//     type IntoIter = std::vec::IntoIter<Self::Item>;
+//     fn into_iter(& mut self, window: &mut piston_window::PistonWindow) -> Self::IntoIter {
+//         self.threads.into_iter().map(|x|{x.texture()})
+//     }
+// }
