@@ -51,7 +51,10 @@ fn main() {
                     |context, graph_2d, _device| {
                         let mut transform = context.transform;
                         for cpu in 0..cpus {
-                            let texture = textures.pop().unwrap();
+                            let texture = match textures.pop(){
+                                None => { continue; },
+                                Some(texture) => { texture }
+                            };
                             transform[1][2] = 1.0 - 2.0 * cpu as f64 / cpus as f64 ;
                             pw::image(
                                 &texture,
@@ -120,8 +123,11 @@ fn calc(mut draw: SyncSender<equart::Buffer>, command: Receiver<Command>, mut x:
                     start = std::time::Instant::now();
                     sec_cnt = 0;
                 }
-            }
+            },
             Err(_empty) => {
+                if j >= y {
+                    j = 0;
+                };
                 for i in 0..x {
                     sec_cnt +=1;
                     factor ^= factor << 13;
@@ -141,9 +147,6 @@ fn calc(mut draw: SyncSender<equart::Buffer>, command: Receiver<Command>, mut x:
                     );
                 };
                 j += 1;
-                if j >= y {
-                    j = 0;
-                };
             }
         }
     }

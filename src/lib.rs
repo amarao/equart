@@ -2,7 +2,7 @@ use image as im;
 use piston_window;
 use gfx_device_gl;
 use std::sync::mpsc::{Receiver, SyncSender, TryRecvError,sync_channel};
-use std::thread::spawn;
+use std::thread;
 
 pub type Buffer=im::ImageBuffer<im::Rgba<u8>,Vec<u8>>;
 
@@ -21,8 +21,8 @@ impl BufferExtentions for Buffer{
     }
     
     fn scale(&self, new_x:u32, new_y:u32)-> Self{
-        let old_x = self.width();
         let old_y = self.height();
+        let old_x = self.width();
         im::ImageBuffer::from_fn(new_x, new_y, |x, y| {
             if x < old_x && y < old_y {
                 *(self.get_pixel(x, y))
@@ -68,24 +68,27 @@ impl PerThread {
         T: Send + 'static
     {
         let (control_tx, control_rx): (SyncSender<Command>, Receiver<Command>) = sync_channel(1);
-            let (draw_tx, draw_rx): (SyncSender<Buffer>, Receiver<Buffer>) = sync_channel(1);
-        spawn(move ||{closure(draw_tx, control_rx, id)});
+            let (draw_tx, draw_rx): (SyncSender<Buffer>, Receiver<Buffer>) = sync_channel(2);
+        let thread_name = format!("thread {}", id);
+        thread::Builder::new().name(thread_name).spawn(move ||{closure(draw_tx, control_rx, id)}).unwrap();
         Self{
             control_tx: control_tx,
             draw_rx: draw_rx,
             buf:Buffer::new(x, y)
         }
     }
-    fn recieve_update(&mut self){
-            match self.draw_rx.try_recv(){
-                Ok(buf) =>{
-                    self.buf=buf;
-                }
-                Err(TryRecvError::Empty) => {println!("update missed");}
-                Err(TryRecvError::Disconnected) => {
-                    println!("disconnected in draw");
-                }
+    fn recieve_update(&mut self) -> Result<(), ()>{
+        match self.draw_rx.try_recv(){
+            Ok(buf) =>{
+                self.buf=buf;
+            }
+            Err(TryRecvError::Empty) => {println!("update missed.");}
+            Err(TryRecvError::Disconnected) => {
+                println!("Thread terminated!");
+                return Err(());
+            }
         }
+        Ok(())
     }
     fn request_update(&self){
         if let Err(err) =self.control_tx.try_send(Command::NeedUpdate()){
@@ -101,7 +104,7 @@ impl PerThread {
     }
 
     fn resize(&mut self, new_x: u32, new_y: u32) -> Result<(), ()> {
-        let (new_draw_tx, new_draw_rx): (SyncSender<Buffer>, Receiver<Buffer>) = sync_channel(1);
+        let (new_draw_tx, new_draw_rx): (SyncSender<Buffer>, Receiver<Buffer>) = sync_channel(2);
         if let Err(_) = self.control_tx.send(Command::NewResolution(
             new_x, new_y, new_draw_tx
         )){ return Err(())};
@@ -143,21 +146,27 @@ impl Threads {
     }
 
     pub fn request_update(&self){
-        for cpu in 0..self.cpus {
-            self.threads[cpu].request_update();
+        for thread in &self.threads {
+            thread.request_update();
         }
     }
 
     pub fn recieve_update(&mut self){
         for cpu in 0..self.cpus {
-            self.threads[cpu].recieve_update();
+            if let Err(_) = self.threads[cpu].recieve_update(){
+                println!("removing thread for cpu {}.", cpu);
+                self.threads.remove(cpu);
+                self.cpus -= 1;
+                println!("{} threads left", self.cpus);
+                break;
+            }
         }
     }
 
     pub fn get_textures(&self, window: &mut piston_window::PistonWindow) -> Vec<Texture>{
         let mut textures: Vec<piston_window::Texture<gfx_device_gl::Resources>> = Vec::with_capacity(self.cpus);
-        for cpu in 0..self.cpus {
-            textures.push(self.threads[cpu].texture(window));
+        for thread in &self.threads {
+            textures.push(thread.texture(window));
         }
         textures
     }
@@ -169,8 +178,8 @@ impl Threads {
             y = std::cmp::max(y, 16);
         }
         println!("Resize event, from {}x{} to {}x{}.", self.x, self.y, x, y);
-        for cpu in 0..self.cpus{
-            if self.threads[cpu].resize(x, y/self.cpus as u32) == Err(()){
+        for thread in &mut self.threads{
+            if thread.resize(x, y/self.cpus as u32) == Err(()){
                 println!("Unable to resize");
                 return;
             }
