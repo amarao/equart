@@ -11,7 +11,7 @@ pub trait BufferExtentions{
     fn scale(&self, new_x:u32, new_y:u32)-> Self;
     fn as_texture(
         &self,
-        window: &mut piston_window::PistonWindow
+        texture_context: &mut piston_window::TextureContext<gfx_device_gl::Factory, gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>
     ) -> piston_window::Texture<gfx_device_gl::Resources>;
 }
 
@@ -35,12 +35,11 @@ impl BufferExtentions for Buffer{
 
     fn as_texture(
         &self,
-        window: &mut piston_window::PistonWindow
+        texture_context: &mut piston_window::TextureContext<gfx_device_gl::Factory, gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>
     ) -> piston_window::Texture<gfx_device_gl::Resources>
     {
-        let mut texture_context = window.create_texture_context();
         piston_window::Texture::from_image(
-                &mut texture_context,
+                texture_context,
                 &self,
                 &piston_window::TextureSettings::new()
             ).unwrap()
@@ -100,9 +99,9 @@ impl PerThread {
 
     fn texture(
         &self,
-        window: &mut piston_window::PistonWindow
+        texture_context: &mut piston_window::TextureContext<gfx_device_gl::Factory, gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>
     ) -> piston_window::Texture<gfx_device_gl::Resources>{
-        self.buf.as_texture(window)
+        self.buf.as_texture(texture_context)
     }
 
     fn resize(&mut self, new_x: u32, new_y: u32) -> Result<(), ()> {
@@ -128,7 +127,7 @@ type Texture = piston_window::Texture<gfx_device_gl::Resources>;
 
 pub struct TextureIterator<'a> {
     threads_iter:std::slice::Iter<'a, PerThread>,
-    window: &'a mut piston_window::PistonWindow
+    texture_context: &'a mut piston_window::TextureContext<gfx_device_gl::Factory, gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>
 }
 
 pub struct TextureData {
@@ -186,17 +185,17 @@ impl Threads {
         }
     }
 
-    pub fn get_textures(&self, window: &mut piston_window::PistonWindow) -> Vec<Texture>{
+    pub fn get_textures(&self, mut texture_context: &mut piston_window::TextureContext<gfx_device_gl::Factory, gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>) -> Vec<Texture>{
         let mut textures: Vec<piston_window::Texture<gfx_device_gl::Resources>> = Vec::with_capacity(self.cpus);
         for thread in &self.threads {
-            textures.push(thread.texture(window));
+            textures.push(thread.texture(& mut texture_context));
         }
         textures
     }
-    pub fn textures_iter<'a>(&'a self, window: &'a mut piston_window::PistonWindow) -> TextureIterator {
+    pub fn textures_iter<'a>(&'a self, texture_context: &'a mut piston_window::TextureContext<gfx_device_gl::Factory, gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>) -> TextureIterator {
         TextureIterator{
             threads_iter: self.threads.iter(),
-            window
+            texture_context
         }
     }
     
@@ -225,7 +224,7 @@ impl<'a> Iterator for TextureIterator <'a> {
         match self.threads_iter.next() {
             None => None,
             Some(thread) => Some(TextureData{
-                texture: thread.texture(self.window),
+                texture: thread.texture(self.texture_context),
                 span: thread.span
             })
         }

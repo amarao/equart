@@ -17,7 +17,7 @@ fn main() {
         }
     );
     
-    let mut window = match 
+    let mut window: piston_window::PistonWindow = match 
         pw::WindowSettings::new("equart", (DEFAULT_X, DEFAULT_Y))
         .exit_on_esc(true)
         .build() {
@@ -45,7 +45,8 @@ fn main() {
                 control.request_update();
             }
             piston::Event::Loop(piston::Loop::Render(_)) => {
-                let textures = control.textures_iter(& mut window);
+                let mut texture_context: piston_window::TextureContext<gfx_device_gl::Factory, gfx_device_gl::Resources, gfx_device_gl::CommandBuffer> = window.create_texture_context();
+                let textures = control.textures_iter(& mut texture_context);
                 window.draw_2d(
                     &e,
                     |context, graph_2d, _device| {
