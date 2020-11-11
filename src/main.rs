@@ -45,19 +45,15 @@ fn main() {
                 control.request_update();
             }
             piston::Event::Loop(piston::Loop::Render(_)) => {
-                let mut textures = control.get_textures(& mut window);
+                let textures = control.textures_iter(& mut window);
                 window.draw_2d(
                     &e,
                     |context, graph_2d, _device| {
                         let mut transform = context.transform;
-                        for cpu in 0..cpus {
-                            let texture = match textures.pop(){
-                                None => { continue; },
-                                Some(texture) => { texture }
-                            };
-                            transform[1][2] = 1.0 - 2.0 * cpu as f64 / cpus as f64 ;
+                        for texture_data in textures {
+                            transform[1][2] = 1.0 - 2.0 * texture_data.span ;
                             pw::image(
-                                &texture,
+                                &texture_data.texture,
                                 transform,
                                 graph_2d
                             );

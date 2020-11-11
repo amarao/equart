@@ -128,13 +128,17 @@ type Texture = piston_window::Texture<gfx_device_gl::Resources>;
 
 pub struct TextureIterator<'a> {
     threads_iter:std::slice::Iter<'a, PerThread>,
-    cpu: usize,
     window: &'a mut piston_window::PistonWindow
 }
 
+pub struct TextureData {
+    pub texture: Texture,
+    pub span: f64
+}
 fn span(cpu: usize, cpus: usize) -> f64 {
     cpu as f64 / cpus as f64
 }
+
 
 impl Threads {
     pub fn new<C, T>(x: u32, y: u32, closure: C) -> Self
@@ -174,6 +178,7 @@ impl Threads {
             if let Err(_) = self.threads[cpu].recieve_update(){
                 println!("removing thread for cpu {}.", cpu);
                 self.threads.remove(cpu);
+
                 self.cpus -= 1;
                 println!("{} threads left", self.cpus);
                 break;
@@ -188,10 +193,9 @@ impl Threads {
         }
         textures
     }
-    pub fn textures<'a>(&'a self, window: &'a mut piston_window::PistonWindow) -> TextureIterator{
+    pub fn textures_iter<'a>(&'a self, window: &'a mut piston_window::PistonWindow) -> TextureIterator {
         TextureIterator{
             threads_iter: self.threads.iter(),
-            cpu: 0,
             window
         }
     }
@@ -203,7 +207,7 @@ impl Threads {
             y = std::cmp::max(y, 16);
         }
         println!("Resize event, from {}x{} to {}x{}.", self.x, self.y, x, y);
-        for thread in &mut self.threads{
+        for thread in &mut self.threads {
             if thread.resize(x, y/self.cpus as u32) == Err(()){
                 println!("Unable to resize");
                 return;
@@ -216,11 +220,14 @@ impl Threads {
 }
 
 impl<'a> Iterator for TextureIterator <'a> {
-    type Item = Texture;
-    fn next(&mut self) -> Option<Texture>{
+    type Item = TextureData;
+    fn next(&mut self) -> Option<Self::Item>{
         match self.threads_iter.next() {
             None => None,
-            Some(thread) => Some(thread.texture(self.window))
+            Some(thread) => Some(TextureData{
+                texture: thread.texture(self.window),
+                span: thread.span
+            })
         }
     }
 }
