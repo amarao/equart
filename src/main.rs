@@ -10,6 +10,20 @@ const DEFAULT_Y: u32 = 1024;
 fn main() {
     // let cpus = num_cpus::get();
     let cpus = 3;
+    let mut start = std::time::Instant::now();
+    let mut frames: u64 = 0;
+
+    let mut window: piston_window::PistonWindow = match 
+        pw::WindowSettings::new("equart", (DEFAULT_X, DEFAULT_Y))
+        .exit_on_esc(true)
+        .build() {
+            Ok(window) => window,
+            Err(err) => {
+                println!("Unable to create a window: {}", err);
+                return;
+            }
+        };
+
     let mut control = Threads::new(
         DEFAULT_X, DEFAULT_Y, cpus,
         move |draw_tx, control_rx, cpu|{
@@ -17,18 +31,8 @@ fn main() {
             thread_worker(draw_tx, control_rx, DEFAULT_X, DEFAULT_Y/cpus as u32, cpu)
         }
     );
+    control.request_update();
     
-    let mut window: piston_window::PistonWindow = match 
-        pw::WindowSettings::new("equart", (DEFAULT_X, DEFAULT_Y))
-        .exit_on_esc(true)
-        .build() {
-            Ok(window) => window,
-            Err(err) => {
-                drop(control);
-                println!("Unable to create a window: {}", err);
-                return;
-            }
-        };
 
     let mut events = pw::Events::new(
         (||{
@@ -44,6 +48,11 @@ fn main() {
             piston::Event::Loop(piston::Loop::Idle(_)) => {},
             piston::Event::Loop(piston::Loop::AfterRender(_)) => {
                 control.request_update();
+                if start.elapsed().as_secs() > 0{
+                    println!("Framerate: {:1}", frames as f32 / start.elapsed().as_secs_f32());
+                    start = std::time::Instant::now();
+                    frames = 0;
+                }
             }
             piston::Event::Loop(piston::Loop::Render(_)) => {
                 let mut texture_context = window.create_texture_context();
@@ -62,6 +71,7 @@ fn main() {
                         }
                     }
                 );
+                frames +=1;
             }
             
             piston::Event::Loop(piston::Loop::Update(_)) => {
