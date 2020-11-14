@@ -2,7 +2,7 @@ use image as im;
 use piston_window as pw;
 use piston;
 use std::sync::mpsc::{SyncSender, Receiver};
-use equart::{BufferExtentions, Command, Threads};
+use equart::{BufferExtentions, Buffer, Command, Threads};
 
 const DEFAULT_X: u32 = 1900;
 const DEFAULT_Y: u32 = 1024;
@@ -13,7 +13,7 @@ fn main() {
     let mut control = Threads::new(DEFAULT_X, DEFAULT_Y, 
         move |draw_tx, control_rx, cpu|{
             println!("Spawning thread for cpu {}", cpu);
-            calc(draw_tx, control_rx, DEFAULT_X, DEFAULT_Y/cpus as u32, cpu)
+            thread_worker(draw_tx, control_rx, DEFAULT_X, DEFAULT_Y/cpus as u32, cpu)
         }
     );
     
@@ -79,39 +79,68 @@ fn main() {
     }
 }
 
-fn calc(mut draw: SyncSender<equart::Buffer>, command: Receiver<Command>, mut x:u32, mut y:u32, id: usize){
-    let mut sec_cnt: u64 = 0;
-    let mut factor: u64 = 0xFEFABABE;
+struct DrawState{
+    line: u32,
+    factor: u64,
+    color: [u8;3]
+}
+
+impl DrawState{
+    fn new(id: usize)->Self {
+        let color_bases = [
+            [255, 0, 0],
+            [255, 0,255],
+            [0, 255,255],
+            [255, 255, 0],
+            [0, 255, 0],
+            [0, 0,255],
+            [255, 255, 255]
+        ];
+        Self{
+            line: 0,
+            factor: 0xFEFABABE,
+            color: color_bases[id % color_bases.len()]
+        }
+    }
+    fn pixel(&mut self) -> im::Rgba<u8> {
+        self.factor ^= self.factor << 13;
+        self.factor ^= self.factor >> 17;
+        self.factor ^= self.factor << 5;
+        let rnd = self.factor.to_be_bytes()[0];
+        im::Rgba([
+            rnd & self.color[0],
+            rnd & self.color[1],
+            rnd & self.color[2],
+            rnd,
+        ])
+    }
+
+    fn draw(&mut self, buf: & mut Buffer) -> u32 {
+        if self.line >= buf.height(){
+            self.line = 0;
+        }
+        let y = self.line;
+        for x in 0..buf.width(){
+            buf.put_pixel(x, y, self.pixel())
+            
+        }
+        self.line +=1;
+        buf.width()
+    }
+}
+
+
+fn thread_worker(mut draw_tx: SyncSender<equart::Buffer>, command: Receiver<Command>, x:u32, y:u32, id: usize){
+    let mut sec_cnt: u32 = 0;
     let mut start = std::time::Instant::now();
     
     println!("new thread {}: {}x{}", id, x, y);
-    let mut j = 0;
-    let color_bases = [
-        [255, 0, 0],
-        [255, 0,255],
-        [0, 255,255],
-        [255, 255, 0],
-        [0, 255, 0],
-        [0, 0,255],
-        [255, 255, 255]
-    ];
-    let color_base = color_bases[id % color_bases.len()];
+    let mut state = DrawState::new(id);
     let mut buf = equart::Buffer::new(x, y);
     loop{
         match command.try_recv() {
-            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                // must not print here, may be executed at shutdown
-                return;
-            },
-            Ok(Command::NewResolution(new_x, new_y, new_draw)) => {
-                    println!("new thread resolution:{}x{}", new_x, new_y);
-                    x = new_x;
-                    y = new_y;
-                    buf = buf.scale(x, y);
-                    draw = new_draw;
-            },
             Ok(Command::NeedUpdate()) => {
-                if let Err(_) = draw.send(buf.clone()){
+                if let Err(_) = draw_tx.send(buf.clone()){
                     // must not print here, may be executed at shutdown
                     continue;
                 }
@@ -120,31 +149,17 @@ fn calc(mut draw: SyncSender<equart::Buffer>, command: Receiver<Command>, mut x:
                     start = std::time::Instant::now();
                     sec_cnt = 0;
                 }
-            },
-            Err(_empty) => {
-                if j >= y {
-                    j = 0;
-                };
-                for i in 0..x {
-                    sec_cnt +=1;
-                    factor ^= factor << 13;
-                    factor ^= factor >> 17;
-                    factor ^= factor << 5;
-                    let rnd = factor.to_be_bytes()[0];
-                    buf.put_pixel(
-                        i,
-                        j,
-                        im::Rgba([
-                            rnd & color_base[0],
-                            rnd & color_base[1],
-                            rnd & color_base[2],
-                            rnd,
-
-                        ])
-                    );
-                };
-                j += 1;
             }
+            Ok(Command::NewResolution(new_x, new_y, new_draw_tx)) => {
+                println!("new thread resolution:{}x{}", new_x, new_y);
+                buf = buf.scale(new_x, new_y);
+                draw_tx = new_draw_tx;
+            },
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                break;
+            },
+            Err(_) => {},
         }
+        sec_cnt += state.draw(&mut buf);
     }
 }
