@@ -45,14 +45,14 @@ fn main() {
                 control.request_update();
             }
             piston::Event::Loop(piston::Loop::Render(_)) => {
-                let mut texture_context: piston_window::TextureContext<gfx_device_gl::Factory, gfx_device_gl::Resources, gfx_device_gl::CommandBuffer> = window.create_texture_context();
+                let mut texture_context = window.create_texture_context();
                 let textures = control.textures_iter(& mut texture_context);
                 window.draw_2d(
                     &e,
                     |context, graph_2d, _device| {
                         let mut transform = context.transform;
                         for texture_data in textures {
-                            transform[1][2] = 1.0 - 2.0 * texture_data.span ;
+                            transform[1][2] = 1.0 - 2.0 * texture_data.span;
                             pw::image(
                                 &texture_data.texture,
                                 transform,

@@ -42,7 +42,7 @@ impl BufferExtentions for Buffer{
                 texture_context,
                 &self,
                 &piston_window::TextureSettings::new()
-            ).unwrap()
+            ).expect("Can't make texture.")
     }
 }
 
