@@ -9,7 +9,7 @@ const DEFAULT_Y: u32 = 1024;
 
 fn main() {
     // let cpus = num_cpus::get();
-    let cpus = 16;
+    let cpus = 3;
     let mut control = Threads::new(
         DEFAULT_X, DEFAULT_Y, cpus,
         move |draw_tx, control_rx, cpu|{
@@ -146,13 +146,13 @@ fn thread_worker(mut draw_tx: SyncSender<equart::Buffer>, command: Receiver<Comm
                     continue;
                 }
                 if start.elapsed().as_secs() >= 1 {
-                    println!("thread rate: {:.2} Mpps", sec_cnt as f64 / start.elapsed().as_secs_f64()/1000.0/1000.0);
+                    println!("thread {} rate: {:.2} Mpps", id, sec_cnt as f64 / start.elapsed().as_secs_f64()/1000.0/1000.0);
                     start = std::time::Instant::now();
                     sec_cnt = 0;
                 }
             }
             Ok(Command::NewResolution(new_x, new_y, new_draw_tx)) => {
-                println!("new thread resolution:{}x{}", new_x, new_y);
+                println!("new thread {} resolution:{}x{}", id, new_x, new_y);
                 buf = buf.scale(new_x, new_y);
                 draw_tx = new_draw_tx;
             },
