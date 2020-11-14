@@ -140,14 +140,13 @@ fn span(cpu: usize, cpus: usize) -> f64 {
 
 
 impl Threads {
-    pub fn new<C, T>(x: u32, y: u32, closure: C) -> Self
+    pub fn new<C, T>(x: u32, y: u32, cpus: usize, closure: C) -> Self
     where 
         C: FnOnce(SyncSender<Buffer>, Receiver<Command>, usize) -> T,
         C: Send + 'static,
         C: Copy,
         T: Send + 'static
     {
-        let cpus = num_cpus::get();
         let mut retval: Self = Self{
             cpus: cpus,
             threads: Vec::with_capacity(cpus),

@@ -8,9 +8,10 @@ const DEFAULT_X: u32 = 1900;
 const DEFAULT_Y: u32 = 1024;
 
 fn main() {
-    let cpus = num_cpus::get();
-
-    let mut control = Threads::new(DEFAULT_X, DEFAULT_Y, 
+    // let cpus = num_cpus::get();
+    let cpus = 16;
+    let mut control = Threads::new(
+        DEFAULT_X, DEFAULT_Y, cpus,
         move |draw_tx, control_rx, cpu|{
             println!("Spawning thread for cpu {}", cpu);
             thread_worker(draw_tx, control_rx, DEFAULT_X, DEFAULT_Y/cpus as u32, cpu)
