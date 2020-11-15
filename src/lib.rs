@@ -78,6 +78,7 @@ impl PerThread {
             span: span
         }
     }
+
     fn recieve_update(&mut self) -> Result<(), ()>{
         match self.draw_rx.try_recv(){
             Ok(buf) =>{
@@ -229,10 +230,3 @@ impl<'a> Iterator for TextureIterator <'a> {
         }
     }
 }
-// impl IntoIterator for Threads {
-//     type Item = Texture;
-//     type IntoIter = std::vec::IntoIter<Self::Item>;
-//     fn into_iter(& mut self, window: &mut piston_window::PistonWindow) -> Self::IntoIter {
-//         self.threads.into_iter().map(|x|{x.texture()})
-//     }
-// }
