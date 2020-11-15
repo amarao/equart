@@ -11,6 +11,10 @@ fn main() {
     // let cpus = num_cpus::get();
     let cpus = 3;
     let mut start = std::time::Instant::now();
+    let mut request_update_time = std::time::Duration::new(0,0);
+    let mut recieve_time = std::time::Duration::new(0,0);
+    let mut draw_time = std::time::Duration::new(0,0);
+    let mut other_time = std::time::Duration::new(0,0);
     let mut frames: u64 = 0;
 
     let mut window: piston_window::PistonWindow = match 
@@ -47,14 +51,29 @@ fn main() {
         match e{
             piston::Event::Loop(piston::Loop::Idle(_)) => {},
             piston::Event::Loop(piston::Loop::AfterRender(_)) => {
+                let request_start = std::time::Instant::now();
                 control.request_update();
+                request_update_time += request_start.elapsed();
                 if start.elapsed().as_secs() > 0{
-                    println!("Framerate: {:1}", frames as f32 / start.elapsed().as_secs_f32());
+                    let elapsed = start.elapsed().as_secs_f32();
+                    println!(
+                        "FPS: {:.1}, req_time: {:.5}, recv_time {:.5}, draw_time: {:.5}, other: {:.5}",
+                        frames as f32 / elapsed,
+                        request_update_time.as_secs_f32()/elapsed,
+                        recieve_time.as_secs_f32()/elapsed,
+                        draw_time.as_secs_f32()/elapsed,
+                        other_time.as_secs_f32()/elapsed
+                    );
                     start = std::time::Instant::now();
                     frames = 0;
+                    request_update_time = std::time::Duration::new(0,0);
+                    recieve_time = std::time::Duration::new(0,0);
+                    draw_time = std::time::Duration::new(0,0);
+                    other_time = std::time::Duration::new(0,0);
                 }
             }
             piston::Event::Loop(piston::Loop::Render(_)) => {
+                let draw_start = std::time::Instant::now();
                 let mut texture_context = window.create_texture_context();
                 let textures = control.textures_iter(& mut texture_context);
                 window.draw_2d(
@@ -72,10 +91,13 @@ fn main() {
                     }
                 );
                 frames +=1;
+                draw_time += draw_start.elapsed();
             }
             
             piston::Event::Loop(piston::Loop::Update(_)) => {
+                let recieve_start = std::time::Instant::now();
                 control.recieve_update();
+                recieve_time += recieve_start.elapsed();
             }
             piston::Event::Input(piston::Input::Resize(piston::ResizeArgs{window_size:_, draw_size:[new_x, new_y]}), _) => {
                 control.resize(new_x, new_y);
@@ -86,7 +108,9 @@ fn main() {
                 println!("Unexpected something: {:?}", something);
             },
         }
+        let other_start = std::time::Instant::now();
         window.event(&e);
+        other_time += other_start.elapsed();
     }
 }
 
