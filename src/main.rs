@@ -90,13 +90,17 @@ fn main() {
     }
 }
 
+trait DrawingApp {
+    fn new(id: usize)->Self;
+    fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8>;
+}
+
 struct DrawState{
-    line: u32,
     factor: u64,
     color: [u8;3]
 }
 
-impl DrawState{
+impl DrawingApp for DrawState{
     fn new(id: usize)->Self {
         let color_bases = [
             [255, 0, 0],
@@ -108,12 +112,11 @@ impl DrawState{
             [255, 255, 255]
         ];
         Self{
-            line: 0,
             factor: 0xFEFABABE,
             color: color_bases[id % color_bases.len()]
         }
     }
-    fn pixel(&mut self) -> im::Rgba<u8> {
+    fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
         self.factor ^= self.factor << 13;
         self.factor ^= self.factor >> 17;
         self.factor ^= self.factor << 5;
@@ -125,19 +128,33 @@ impl DrawState{
             rnd,
         ])
     }
+}
 
+struct ThreadWorkerState<A>{
+    line: u32,
+    app: A
+}
+impl<A> ThreadWorkerState<A>
+    where A: DrawingApp
+{
+    fn new(id: usize) -> Self {
+        Self{
+            line: 0,
+            app: A::new(id)
+        }
+    }
     fn draw(&mut self, buf: & mut Buffer) -> u32 {
         if self.line >= buf.height(){
             self.line = 0;
         }
         let y = self.line;
         for x in 0..buf.width(){
-            buf.put_pixel(x, y, self.pixel())
+            buf.put_pixel(x, y, self.app.calculate_pixel(x, y))
             
         }
         self.line +=1;
         buf.width()
-    }
+}
 }
 
 
@@ -146,9 +163,9 @@ fn thread_worker(mut draw_tx: SyncSender<equart::Buffer>, command: Receiver<Comm
     let mut start = std::time::Instant::now();
     
     println!("new thread {}: {}x{}", id, x, y);
-    let mut state = DrawState::new(id);
+    let mut state: ThreadWorkerState<DrawState> = ThreadWorkerState::new(id);
     let mut buf = equart::Buffer::new(x, y);
-    loop{
+    loop {
         match command.try_recv() {
             Ok(Command::NeedUpdate()) => {
                 if let Err(_) = draw_tx.send(buf.clone()){
