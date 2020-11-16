@@ -161,10 +161,10 @@ struct ThreadWorkerState<A>{
 impl<A> ThreadWorkerState<A>
     where A: DrawingApp
 {
-    fn new(id: usize) -> Self {
+    fn new(app: A) -> Self {
         Self{
             line: 0,
-            app: A::new(id)
+            app: app
         }
     }
     fn draw(&mut self, buf: & mut Buffer) -> u32 {
@@ -187,7 +187,7 @@ fn thread_worker(mut draw_tx: SyncSender<equart::Buffer>, command: Receiver<Comm
     let mut start = std::time::Instant::now();
     
     println!("new thread {}: {}x{}", id, x, y);
-    let mut state: ThreadWorkerState<DrawState> = ThreadWorkerState::new(id);
+    let mut state = ThreadWorkerState::new(DrawState::new(id));
     let mut buf = equart::Buffer::new(x, y);
     loop {
         match command.try_recv() {
