@@ -73,11 +73,9 @@ impl PerThread {
         thread::Builder::new().name(thread_name).spawn(
             move ||{
                 println!("Spawned thread for cpu {}", id);
-                thread_worker(
-                    draw_tx,
-                    control_rx,
-                    x,
-                    y,
+                Self::in_thread(
+                    draw_tx, control_rx,
+                    x, y,
                     id,
                     f(id)
                 )
@@ -91,6 +89,40 @@ impl PerThread {
         }
     }
 
+    fn in_thread<A>(mut draw_tx: SyncSender<Buffer>, command: Receiver<Command>, x:u32, y:u32, id: usize, app: A)
+    where A: DrawingApp
+    {
+        let mut sec_cnt: u32 = 0;
+        let mut start = std::time::Instant::now();
+        let mut state  = ThreadWorkerState::new(app);
+        println!("new thread {}: {}x{}", id, x, y);
+        let mut buf = Buffer::new(x, y);
+        loop {
+            match command.try_recv() {
+                Ok(Command::NeedUpdate()) => {
+                    if let Err(_) = draw_tx.send(buf.clone()){
+                        // must not print here, may be executed at shutdown
+                        continue;
+                    }
+                    if start.elapsed().as_secs() >= 1 {
+                        println!("thread {} rate: {:.2} Mpps", id, sec_cnt as f64 / start.elapsed().as_secs_f64()/1000.0/1000.0);
+                        start = std::time::Instant::now();
+                        sec_cnt = 0;
+                    }
+                }
+                Ok(Command::NewResolution(new_x, new_y, new_draw_tx)) => {
+                    println!("new thread {} resolution:{}x{}", id, new_x, new_y);
+                    buf = buf.scale(new_x, new_y);
+                    draw_tx = new_draw_tx;
+                },
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    break;
+                },
+                Err(_) => {},
+            }
+            sec_cnt += state.draw(&mut buf);
+        }
+    }
     fn recieve_update(&mut self) -> Result<(), ()>{
         match self.draw_rx.try_recv(){
             Ok(buf) =>{
@@ -267,46 +299,10 @@ impl<A> ThreadWorkerState<A>
         }
         self.line +=1;
         buf.width()
+    }
 }
-}
-
 
 pub trait DrawingApp {
     fn new(id: usize)->Self;
     fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8>;
-}
-
-pub fn thread_worker<A>(mut draw_tx: SyncSender<Buffer>, command: Receiver<Command>, x:u32, y:u32, id: usize, app: A)
-where A: DrawingApp
-{
-    let mut sec_cnt: u32 = 0;
-    let mut start = std::time::Instant::now();
-    let mut state  = ThreadWorkerState::new(app);
-    println!("new thread {}: {}x{}", id, x, y);
-    let mut buf = Buffer::new(x, y);
-    loop {
-        match command.try_recv() {
-            Ok(Command::NeedUpdate()) => {
-                if let Err(_) = draw_tx.send(buf.clone()){
-                    // must not print here, may be executed at shutdown
-                    continue;
-                }
-                if start.elapsed().as_secs() >= 1 {
-                    println!("thread {} rate: {:.2} Mpps", id, sec_cnt as f64 / start.elapsed().as_secs_f64()/1000.0/1000.0);
-                    start = std::time::Instant::now();
-                    sec_cnt = 0;
-                }
-            }
-            Ok(Command::NewResolution(new_x, new_y, new_draw_tx)) => {
-                println!("new thread {} resolution:{}x{}", id, new_x, new_y);
-                buf = buf.scale(new_x, new_y);
-                draw_tx = new_draw_tx;
-            },
-            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                break;
-            },
-            Err(_) => {},
-        }
-        sec_cnt += state.draw(&mut buf);
-    }
 }
