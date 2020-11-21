@@ -1,6 +1,4 @@
 use image as im;
-use piston_window;
-use gfx_device_gl;
 use std::sync::mpsc::{Receiver, SyncSender, TryRecvError,sync_channel};
 use std::thread;
 
@@ -82,10 +80,10 @@ impl PerThread {
             }
         ).unwrap();
         Self{
-            control_tx: control_tx,
-            draw_rx: draw_rx,
+            control_tx,
+            draw_rx,
             buf:Buffer::new(x, y),
-            span: span
+            span
         }
     }
 
@@ -100,7 +98,7 @@ impl PerThread {
         loop {
             match command.try_recv() {
                 Ok(Command::NeedUpdate()) => {
-                    if let Err(_) = draw_tx.send(buf.clone()){
+                    if draw_tx.send(buf.clone()).is_err(){
                         // must not print here, may be executed at shutdown
                         continue;
                     }
@@ -151,9 +149,11 @@ impl PerThread {
 
     fn resize(&mut self, new_x: u32, new_y: u32) -> Result<(), ()> {
         let (new_draw_tx, new_draw_rx): (SyncSender<Buffer>, Receiver<Buffer>) = sync_channel(2);
-        if let Err(_) = self.control_tx.send(Command::NewResolution(
+        if self.control_tx.send(Command::NewResolution(
             new_x, new_y, new_draw_tx
-        )){ return Err(())};
+        )).is_err(){
+            return Err(())
+        };
         self.draw_rx = new_draw_rx;
         self.buf = self.buf.scale(new_x, new_y);
         Ok(())
@@ -193,10 +193,10 @@ impl Threads {
         T: DrawingApp
     {
         let mut retval: Self = Self{
-            cpus: cpus,
+            cpus,
             threads: Vec::with_capacity(cpus),
-            x: x,
-            y: y,
+            x,
+            y,
         };
         for cpu in 0..retval.cpus {
             retval.threads.push(PerThread::new(
@@ -218,7 +218,7 @@ impl Threads {
 
     pub fn recieve_update(&mut self){
         for cpu in 0..self.cpus {
-            if let Err(_) = self.threads[cpu].recieve_update(){
+            if self.threads[cpu].recieve_update().is_err(){
                 println!("removing thread for cpu {}.", cpu);
                 self.threads.remove(cpu);
 
@@ -285,7 +285,7 @@ impl<A> ThreadWorkerState<A>
     fn new(app: A) -> Self {
         Self{
             line: 0,
-            app: app
+            app
         }
     }
     fn draw(&mut self, buf: & mut Buffer) -> u32 {

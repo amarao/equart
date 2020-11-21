@@ -1,6 +1,5 @@
 use image as im;
 use piston_window as pw;
-use piston;
 use equart::{Threads, DrawingApp};
 
 const DEFAULT_X: u32 = 1900;
@@ -31,15 +30,10 @@ fn main() {
     let mut control = Threads::new (DEFAULT_X, DEFAULT_Y, cpus, RandDraw::new);
     control.request_update();
     
-
-    let mut events = pw::Events::new(
-        (||{
-            let mut settings = pw::EventSettings::new();
-            settings.ups = 60;
-            settings.max_fps = 60;
-            settings
-        })()
-    );
+    let mut settings = pw::EventSettings::new();
+    settings.ups = 60;
+    settings.max_fps = 60;
+    let mut events = pw::Events::new(settings);
 
     while let Some(e) = events.next(&mut window) {
         match e{
