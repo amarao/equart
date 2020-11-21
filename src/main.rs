@@ -27,12 +27,20 @@ fn main() {
                 return;
             }
         };
-
+    
     let mut control = Threads::new(
         DEFAULT_X, DEFAULT_Y, cpus,
         move |draw_tx, control_rx, cpu|{
             println!("Spawning thread for cpu {}", cpu);
-            thread_worker(draw_tx, control_rx, DEFAULT_X, DEFAULT_Y/cpus as u32, cpu)
+            let app:RandDraw = DrawingApp::new(cpu);
+            thread_worker(
+                draw_tx,
+                control_rx,
+                DEFAULT_X,
+                DEFAULT_Y/cpus as u32,
+                cpu,
+                app
+            )
         }
     );
     control.request_update();
@@ -119,12 +127,12 @@ trait DrawingApp {
     fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8>;
 }
 
-struct DrawState{
+struct RandDraw{
     factor: u64,
     color: [u8;3]
 }
 
-impl DrawingApp for DrawState{
+impl DrawingApp for RandDraw{
     fn new(id: usize)->Self {
         let color_bases = [
             [255, 0, 0],
@@ -181,13 +189,14 @@ impl<A> ThreadWorkerState<A>
 }
 }
 
-
-fn thread_worker(mut draw_tx: SyncSender<equart::Buffer>, command: Receiver<Command>, x:u32, y:u32, id: usize){
+fn thread_worker<A>(mut draw_tx: SyncSender<equart::Buffer>, command: Receiver<Command>, x:u32, y:u32, id: usize, app: A)
+where A: DrawingApp
+{
     let mut sec_cnt: u32 = 0;
     let mut start = std::time::Instant::now();
-    
+    let mut state  = ThreadWorkerState::new(app);
     println!("new thread {}: {}x{}", id, x, y);
-    let mut state = ThreadWorkerState::new(DrawState::new(id));
+    // let mut state = 
     let mut buf = equart::Buffer::new(x, y);
     loop {
         match command.try_recv() {
