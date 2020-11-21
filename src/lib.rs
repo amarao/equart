@@ -59,9 +59,9 @@ struct PerThread {
 }
 
 impl PerThread {
-    fn new<F, T>(x: u32, y: u32, id: usize, span: f64, f: F) -> Self 
+    fn new<F, T>(x: u32, y: u32, id: usize, max_id: usize, span: f64, f: F) -> Self 
     where
-        F: FnOnce(usize) -> T,
+        F: FnOnce(usize, usize) -> T,
         F: Send + 'static + Copy,
         T: DrawingApp
     {
@@ -74,8 +74,8 @@ impl PerThread {
                 Self::in_thread(
                     draw_tx, control_rx,
                     x, y,
-                    id,
-                    f(id)
+                    id, 
+                    f(id, max_id)
                 )
             }
         ).unwrap();
@@ -110,6 +110,7 @@ impl PerThread {
                 }
                 Ok(Command::NewResolution(new_x, new_y, new_draw_tx)) => {
                     println!("new thread {} resolution:{}x{}", id, new_x, new_y);
+                    state.resize(buf.width(), buf.height(), new_x, new_y);
                     buf = buf.scale(new_x, new_y);
                     draw_tx = new_draw_tx;
                 },
@@ -188,7 +189,7 @@ impl Threads {
 
     pub fn new<F, T>(x: u32, y: u32, cpus: usize, f: F) -> Self
     where 
-        F: Fn(usize) -> T,
+        F: Fn(usize, usize) -> T,
         F: Send + 'static + Copy,
         T: DrawingApp
     {
@@ -202,7 +203,7 @@ impl Threads {
             retval.threads.push(PerThread::new(
                 x,
                 y/retval.cpus as u32,
-                cpu,
+                cpu, cpus,
                 span(cpu, cpus),
                 f,
             ))
@@ -288,6 +289,9 @@ impl<A> ThreadWorkerState<A>
             app
         }
     }
+    fn resize(&mut self, old_x: u32, old_y: u32, x: u32, y: u32){
+        self.app.resize(old_x, old_y, x, y);
+    }
     fn draw(&mut self, buf: & mut Buffer) -> u32 {
         if self.line >= buf.height(){
             self.line = 0;
@@ -303,6 +307,7 @@ impl<A> ThreadWorkerState<A>
 }
 
 pub trait DrawingApp {
-    fn new(id: usize)->Self;
+    fn new(id: usize, max_id: usize)->Self;
     fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8>;
+    fn resize(&mut self, old_x: u32, old_y: u32, new_x: u32, new_y: u32);
 }

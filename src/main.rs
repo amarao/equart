@@ -20,7 +20,7 @@ struct App {
 impl App {
     fn new<U>(title: &str, cpus: usize, start_x: u32, start_y: u32) -> Self 
         where
-            U: DrawingApp + Copy + 'static
+            U: DrawingApp + 'static
         {
         let window: piston_window::PistonWindow = 
             piston_window::WindowSettings::new(title, (start_x, start_y))
@@ -117,7 +117,7 @@ impl App {
 fn main() {
     // let cpus = num_cpus::get();
     let cpus = 3;
-    let mut app: App = App::new::<RandDraw>("equart", cpus, DEFAULT_X, DEFAULT_Y);
+    let mut app: App = App::new::<Equart>("equart", cpus, DEFAULT_X, DEFAULT_Y);
 
     while let Some(e) = app.next_event() {
         match e{
@@ -134,14 +134,13 @@ fn main() {
     }
 }
 
-#[derive(Clone,Copy)]
 struct RandDraw{
     factor: u64,
     color: [u8;3]
 }
 
 impl DrawingApp for RandDraw{
-    fn new(id: usize)->Self {
+    fn new(id: usize, max_id: usize)->Self {
         let color_bases = [
             [255, 0, 0],
             [255, 0,255],
@@ -156,6 +155,9 @@ impl DrawingApp for RandDraw{
             color: color_bases[id % color_bases.len()]
         }
     }
+    fn resize(&mut self, old_x: u32, old_y: u32, new_x: u32, new_y: u32){
+
+    }
     fn calculate_pixel(&mut self, _x: u32, _y: u32) -> im::Rgba<u8> {
         self.factor ^= self.factor << 13;
         self.factor ^= self.factor >> 17;
@@ -166,6 +168,50 @@ impl DrawingApp for RandDraw{
             rnd & self.color[1],
             rnd & self.color[2],
             rnd,
+        ])
+    }
+}
+
+
+const WINDOW_X_START: f64 = -1.0;
+const WINDOW_X_END: f64 = 1.0;
+const WINDOW_Y_START: f64 = 1.0;
+const WINDOW_Y_END: f64 = 1.0;
+
+
+fn equart(x: f64, y:f64) -> f64{
+    x.sin() - y
+}
+
+struct Equart {
+    root_window_start_x: f64,
+    root_window_start_y: f64,
+    root_window_end_x: f64,
+    root_window_end_y: f64,
+    roots_map: Vec<Vec<f64>>,
+    fixel_size: f64, //pixel size for float window
+}
+
+impl DrawingApp for Equart{
+    fn new(id: usize, max_id: usize)->Self {
+        Self{
+            root_window_start_x: 0.0,
+            root_window_start_y: 0.0,
+            root_window_end_x: 1.0,
+            root_window_end_y: 1.0,
+            roots_map: vec![vec![1.0, 2.0], vec![3.0, 4.0]],
+            fixel_size: 0.1
+        }
+    }
+    fn resize(&mut self, old_x: u32, old_y: u32, new_x: u32, new_y: u32){
+
+    }
+    fn calculate_pixel(&mut self, _x: u32, _y: u32) -> im::Rgba<u8> {
+        im::Rgba([
+            0,
+            1,
+            2,
+            255
         ])
     }
 }
