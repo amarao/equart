@@ -2,7 +2,7 @@ use image as im;
 use piston_window as pw;
 use piston;
 // use std::sync::mpsc::{SyncSender, Receiver};
-use equart::{Threads, thread_worker, DrawingApp};
+use equart::{Threads, DrawingApp};
 
 const DEFAULT_X: u32 = 1900;
 const DEFAULT_Y: u32 = 1024;
@@ -28,21 +28,22 @@ fn main() {
             }
         };
     
-    let mut control = Threads::new(
-        DEFAULT_X, DEFAULT_Y, cpus,
-        move |draw_tx, control_rx, cpu|{
-            println!("Spawning thread for cpu {}", cpu);
-            let app:RandDraw = DrawingApp::new(cpu);
-            thread_worker(
-                draw_tx,
-                control_rx,
-                DEFAULT_X,
-                DEFAULT_Y/cpus as u32,
-                cpu,
-                app
-            )
-        }
-    );
+    // let mut control = Threads::new(
+    //     DEFAULT_X, DEFAULT_Y, cpus,
+    //     move |draw_tx, control_rx, cpu|{
+    //         println!("Spawning thread for cpu {}", cpu);
+    //         let app:RandDraw = DrawingApp::new(cpu);
+    //         thread_worker(
+    //             draw_tx,
+    //             control_rx,
+    //             DEFAULT_X,
+    //             DEFAULT_Y/cpus as u32,
+    //             cpu,
+    //             app
+    //         )
+    //     }
+    // );
+    let mut control = Threads::new_by_trait (DEFAULT_X, DEFAULT_Y, cpus, RandDraw::new);
     control.request_update();
     
 
@@ -143,7 +144,7 @@ impl DrawingApp for RandDraw{
             color: color_bases[id % color_bases.len()]
         }
     }
-    fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
+    fn calculate_pixel(&mut self, _x: u32, _y: u32) -> im::Rgba<u8> {
         self.factor ^= self.factor << 13;
         self.factor ^= self.factor >> 17;
         self.factor ^= self.factor << 5;
@@ -156,5 +157,3 @@ impl DrawingApp for RandDraw{
         ])
     }
 }
-
-

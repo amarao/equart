@@ -166,6 +166,40 @@ impl Threads {
         retval
     }
 
+    pub fn new_by_trait<F, T>(x: u32, y: u32, cpus: usize, f: F) -> Self
+    where 
+        F: Fn(usize) -> T,
+        F: Send + 'static + Copy,
+        T: DrawingApp
+    {
+        let mut retval: Self = Self{
+            cpus: cpus,
+            threads: Vec::with_capacity(cpus),
+            x: x,
+            y: y,
+        };
+        for cpu in 0..retval.cpus {
+            retval.threads.push(PerThread::new(
+                x,
+                y/retval.cpus as u32,
+                move |draw_tx, control_rx, cpu|{
+                    println!("Spawning thread for cpu {}", cpu);
+                    thread_worker(
+                        draw_tx,
+                        control_rx,
+                        x,
+                        y/cpus as u32,
+                        cpu,
+                        f(cpu)
+                    )
+                },
+                cpu,
+                span(cpu, cpus)
+            ))
+        }
+        retval
+    }
+
     pub fn request_update(&self){
         for thread in &self.threads {
             thread.request_update();
@@ -263,7 +297,6 @@ pub trait DrawingApp {
     fn new(id: usize)->Self;
     fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8>;
 }
-
 
 pub fn thread_worker<A>(mut draw_tx: SyncSender<Buffer>, command: Receiver<Command>, x:u32, y:u32, id: usize, app: A)
 where A: DrawingApp
