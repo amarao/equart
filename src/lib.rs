@@ -61,16 +61,28 @@ struct PerThread {
 }
 
 impl PerThread {
-    fn new<C, T>(x: u32, y: u32, closure: C, id: usize, span: f64) -> Self 
+    fn new<F, T>(x: u32, y: u32, id: usize, span: f64, f: F) -> Self 
     where
-        C: FnOnce(SyncSender<Buffer>,Receiver<Command>, usize) -> T,
-        C: Send + 'static,
-        T: Send + 'static
+        F: FnOnce(usize) -> T,
+        F: Send + 'static + Copy,
+        T: DrawingApp
     {
         let (control_tx, control_rx): (SyncSender<Command>, Receiver<Command>) = sync_channel(1);
             let (draw_tx, draw_rx): (SyncSender<Buffer>, Receiver<Buffer>) = sync_channel(2);
         let thread_name = format!("thread {}", id);
-        thread::Builder::new().name(thread_name).spawn(move ||{closure(draw_tx, control_rx, id)}).unwrap();
+        thread::Builder::new().name(thread_name).spawn(
+            move ||{
+                println!("Spawned thread for cpu {}", id);
+                thread_worker(
+                    draw_tx,
+                    control_rx,
+                    x,
+                    y,
+                    id,
+                    f(id)
+                )
+            }
+        ).unwrap();
         Self{
             control_tx: control_tx,
             draw_rx: draw_rx,
@@ -141,32 +153,8 @@ fn span(cpu: usize, cpus: usize) -> f64 {
 
 
 impl Threads {
-    pub fn new<C, T>(x: u32, y: u32, cpus: usize, closure: C) -> Self
-    where 
-        C: FnOnce(SyncSender<Buffer>, Receiver<Command>, usize) -> T,
-        C: Send + 'static,
-        C: Copy,
-        T: Send + 'static
-    {
-        let mut retval: Self = Self{
-            cpus: cpus,
-            threads: Vec::with_capacity(cpus),
-            x: x,
-            y: y,
-        };
-        for cpu in 0..retval.cpus {
-            retval.threads.push(PerThread::new(
-                x,
-                y/retval.cpus as u32,
-                closure,
-                cpu,
-                span(cpu, cpus)
-            ));
-        }
-        retval
-    }
 
-    pub fn new_by_trait<F, T>(x: u32, y: u32, cpus: usize, f: F) -> Self
+    pub fn new<F, T>(x: u32, y: u32, cpus: usize, f: F) -> Self
     where 
         F: Fn(usize) -> T,
         F: Send + 'static + Copy,
@@ -182,19 +170,9 @@ impl Threads {
             retval.threads.push(PerThread::new(
                 x,
                 y/retval.cpus as u32,
-                move |draw_tx, control_rx, cpu|{
-                    println!("Spawning thread for cpu {}", cpu);
-                    thread_worker(
-                        draw_tx,
-                        control_rx,
-                        x,
-                        y/cpus as u32,
-                        cpu,
-                        f(cpu)
-                    )
-                },
                 cpu,
-                span(cpu, cpus)
+                span(cpu, cpus),
+                f,
             ))
         }
         retval
@@ -305,7 +283,6 @@ where A: DrawingApp
     let mut start = std::time::Instant::now();
     let mut state  = ThreadWorkerState::new(app);
     println!("new thread {}: {}x{}", id, x, y);
-    // let mut state = 
     let mut buf = Buffer::new(x, y);
     loop {
         match command.try_recv() {

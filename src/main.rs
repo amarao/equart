@@ -1,7 +1,6 @@
 use image as im;
 use piston_window as pw;
 use piston;
-// use std::sync::mpsc::{SyncSender, Receiver};
 use equart::{Threads, DrawingApp};
 
 const DEFAULT_X: u32 = 1900;
@@ -28,22 +27,8 @@ fn main() {
             }
         };
     
-    // let mut control = Threads::new(
-    //     DEFAULT_X, DEFAULT_Y, cpus,
-    //     move |draw_tx, control_rx, cpu|{
-    //         println!("Spawning thread for cpu {}", cpu);
-    //         let app:RandDraw = DrawingApp::new(cpu);
-    //         thread_worker(
-    //             draw_tx,
-    //             control_rx,
-    //             DEFAULT_X,
-    //             DEFAULT_Y/cpus as u32,
-    //             cpu,
-    //             app
-    //         )
-    //     }
-    // );
-    let mut control = Threads::new_by_trait (DEFAULT_X, DEFAULT_Y, cpus, RandDraw::new);
+
+    let mut control = Threads::new (DEFAULT_X, DEFAULT_Y, cpus, RandDraw::new);
     control.request_update();
     
 
