@@ -1,5 +1,6 @@
 use image as im;
 use equart::{Threads, DrawingApp};
+use piston::{Event, Loop};
 
 const DEFAULT_X: u32 = 1900;
 const DEFAULT_Y: u32 = 1024;
@@ -44,7 +45,7 @@ impl App {
         }
         
     }
-    fn next_event(&mut self) -> Option<piston::Event> {
+    fn next_event(&mut self) -> Option<Event> {
         self.events.next(& mut self.window)
     }
 
@@ -71,7 +72,7 @@ impl App {
         }
     }
 
-    fn render(&mut self, e: &piston::Event){
+    fn render(&mut self, e: &Event){
         let draw_start = std::time::Instant::now();
         let mut texture_context = self.window.create_texture_context();
         let textures = self.control.textures_iter(& mut texture_context);
@@ -105,7 +106,7 @@ impl App {
         }
     }
 
-    fn finish_event(&mut self, e: piston::Event) {
+    fn finish_event(&mut self, e: Event) {
         let other_start = std::time::Instant::now();
         self.window.event(&e);
         self.other_time += other_start.elapsed();
@@ -116,29 +117,15 @@ impl App {
 fn main() {
     // let cpus = num_cpus::get();
     let cpus = 3;
-    let mut app: App = App::new::<RandDraw>(
-        "equart",
-        cpus,
-        DEFAULT_X,
-        DEFAULT_Y
-    );
+    let mut app: App = App::new::<RandDraw>("equart", cpus, DEFAULT_X, DEFAULT_Y);
 
     while let Some(e) = app.next_event() {
         match e{
-            piston::Event::Loop(piston::Loop::Idle(_)) => {},
-            piston::Event::Loop(piston::Loop::AfterRender(_)) => {
-                app.after_render();
-            }
-            piston::Event::Loop(piston::Loop::Render(_)) => {
-                app.render(&e);
-            }
-            
-            piston::Event::Loop(piston::Loop::Update(_)) => {
-                app.update();
-            }
-            piston::Event::Input(ref i, _) => {
-                app.input(&i);
-            },
+            Event::Loop(Loop::Idle(_)) => {},
+            Event::Loop(Loop::AfterRender(_)) => app.after_render(),
+            Event::Loop(Loop::Render(_)) => app.render(&e),
+            Event::Loop(Loop::Update(_)) => app.update(),
+            Event::Input(ref i, _) => app.input(&i),
             ref something => {
                 println!("Unexpected something: {:?}", something);
             },
