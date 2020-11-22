@@ -222,7 +222,7 @@ impl DrawingApp for Equart{
 
     fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
         let matrix = self.pixel2matrix(x, y);
-        match Equart::is_root(matrix) {
+        match Equart::is_root(matrix, equart) {
             true => im::Rgba([0, 0, 0, 255]),
             false => im::Rgba([255 ,255, 255, 255]),
         }
@@ -230,7 +230,10 @@ impl DrawingApp for Equart{
 }
 
 impl Equart{
-    fn is_root(matrix: Vec<[f64;2]>) -> bool {
+    fn is_root<F>(matrix: Vec<[f64;2]>, f: F) -> bool 
+    where
+        F: Fn(f64, f64) -> f64
+    {
         let mut zeroes: bool = false;
         let mut positive: bool = false;
         let mut negative: bool = false;
@@ -262,5 +265,27 @@ impl Equart{
     fn update_fixel_size(&mut self){
         self.fixel_size_x = (self.root_window_end_x - self.root_window_start_x)/self.pixel_size_x as f64;
         self.fixel_size_y = (self.root_window_end_y - self.root_window_start_y)/self.pixel_size_y as f64;
+    }
+}
+
+#[cfg(test)]
+mod equart_tests{
+    use super::*;
+    
+    #[test]
+    fn empty_is_root(){
+        let data_in = vec![];
+        assert_eq!(
+            Equart::is_root(data_in, |_, __|{0.0}),
+            false
+        );
+    }
+    #[test]
+    fn zerores_is_root(){
+        let data_in = vec![[0.0, 0.0]];
+        assert_eq!(
+            Equart::is_root(data_in, |_, __|{0.0}),
+            true
+        );
     }
 }
