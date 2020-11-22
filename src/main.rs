@@ -115,8 +115,8 @@ impl App {
 }
 
 fn main() {
-    // let cpus = num_cpus::get();
-    let cpus = 3;
+    let cpus = num_cpus::get();
+    // let cpus = 3;
     let mut app: App = App::new::<Equart>("equart", cpus, DEFAULT_X, DEFAULT_Y);
 
     while let Some(e) = app.next_event() {
