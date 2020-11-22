@@ -238,12 +238,16 @@ impl Equart{
         let mut positive: bool = false;
         let mut negative: bool = false;
         for [x,y ] in matrix {
-            match equart(x, y).signum() {
-                0.0 => {zeroes = true;},
-                -1.0 => {negative = true;},
-                1.0 => {positive = true},
-                _ => {} // NaN
+            let res = f(x, y);
+            if res == 0.0 {
+                zeroes = true;
+            } else if res < 0.0 {
+                negative = true;
+            } else if res > 0.0 {
+                positive = true;
             }
+            // NaN is skippeed.
+
         }
         zeroes || (positive && negative)
     }
@@ -285,6 +289,32 @@ mod equart_tests{
         let data_in = vec![[0.0, 0.0]];
         assert_eq!(
             Equart::is_root(data_in, |_, __|{0.0}),
+            true
+        );
+        
+    }
+    #[test]
+    fn positive_is_root(){
+        let data_in = vec![[0.0, 0.0]];
+        assert_eq!(
+            Equart::is_root(data_in, |_, __|{1.0}),
+            false
+        );
+        
+    }
+    #[test]
+    fn negative_is_root(){
+        let data_in = vec![[0.0, 0.0]];
+        assert_eq!(
+            Equart::is_root(data_in, |_, __|{-1.0}),
+            false
+        );
+    }
+    #[test]
+    fn sign_change_is_root(){
+        let data_in = vec![[-1.0, -1.0], [1.0, 1.0]];
+        assert_eq!(
+            Equart::is_root(data_in, |x, __|{x}),
             true
         );
     }
