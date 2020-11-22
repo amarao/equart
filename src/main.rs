@@ -1,3 +1,7 @@
+fn equart(x: f64, y:f64) -> f64{
+    (1.0/x).sin() - y
+}
+
 use image as im;
 use equart::{Threads, DrawingApp};
 use piston::{Event, Loop};
@@ -155,9 +159,6 @@ impl DrawingApp for RandDraw{
             color: color_bases[id % color_bases.len()]
         }
     }
-    fn resize(&mut self, old_x: u32, old_y: u32, new_x: u32, new_y: u32){
-
-    }
     fn calculate_pixel(&mut self, _x: u32, _y: u32) -> im::Rgba<u8> {
         self.factor ^= self.factor << 13;
         self.factor ^= self.factor >> 17;
@@ -172,16 +173,10 @@ impl DrawingApp for RandDraw{
     }
 }
 
-
 const WINDOW_X_START: f64 = -8.0;
 const WINDOW_X_END: f64 = 8.0;
 const WINDOW_Y_START: f64 = -1.5;
 const WINDOW_Y_END: f64 = 1.5;
-
-
-fn equart(x: f64, y:f64) -> f64{
-    x.sin() - y
-}
 
 struct Equart {  // per thread instance, each instance has own 'slice' to work with
     root_window_start_x: f64,
@@ -214,9 +209,9 @@ impl DrawingApp for Equart{
         value
         
     }
-    fn resize(&mut self, old_x: u32, old_y: u32, new_x: u32, new_y: u32){
-        self.pixel_size_x = new_x;
-        self.pixel_size_y = new_y;
+    fn resize(&mut self, x: u32, y: u32){
+        self.pixel_size_x = x;
+        self.pixel_size_y = y;
         self.update_fixel_size();
     }
 

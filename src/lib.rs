@@ -110,7 +110,7 @@ impl PerThread {
                 }
                 Ok(Command::NewResolution(new_x, new_y, new_draw_tx)) => {
                     println!("new thread {} resolution:{}x{}", id, new_x, new_y);
-                    state.resize(buf.width(), buf.height(), new_x, new_y);
+                    state.resize(new_x, new_y);
                     buf = buf.scale(new_x, new_y);
                     draw_tx = new_draw_tx;
                 },
@@ -289,8 +289,8 @@ impl<A> ThreadWorkerState<A>
             app
         }
     }
-    fn resize(&mut self, old_x: u32, old_y: u32, x: u32, y: u32){
-        self.app.resize(old_x, old_y, x, y);
+    fn resize(&mut self, x: u32, y: u32){
+        self.app.resize(x, y);
     }
     fn draw(&mut self, buf: & mut Buffer) -> u32 {
         if self.line >= buf.height(){
@@ -308,6 +308,10 @@ impl<A> ThreadWorkerState<A>
 
 pub trait DrawingApp {
     fn new(id: usize, max_id: usize, x: u32, y: u32)->Self;
-    fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8>;
-    fn resize(&mut self, old_x: u32, old_y: u32, new_x: u32, new_y: u32);
+    fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8>{
+        im::Rgba([128, 128, 128, 255])
+    }
+    fn resize(&mut self, new_x: u32, new_y: u32){
+
+    }
 }
