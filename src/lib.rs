@@ -61,7 +61,7 @@ struct PerThread {
 impl PerThread {
     fn new<F, T>(x: u32, y: u32, id: usize, max_id: usize, span: f64, f: F) -> Self 
     where
-        F: FnOnce(usize, usize) -> T,
+        F: FnOnce(usize, usize, u32, u32) -> T,
         F: Send + 'static + Copy,
         T: DrawingApp
     {
@@ -75,7 +75,7 @@ impl PerThread {
                     draw_tx, control_rx,
                     x, y,
                     id, 
-                    f(id, max_id)
+                    f(id, max_id, x, y)
                 )
             }
         ).unwrap();
@@ -189,7 +189,7 @@ impl Threads {
 
     pub fn new<F, T>(x: u32, y: u32, cpus: usize, f: F) -> Self
     where 
-        F: Fn(usize, usize) -> T,
+        F: Fn(usize, usize, u32, u32) -> T,
         F: Send + 'static + Copy,
         T: DrawingApp
     {
@@ -307,7 +307,7 @@ impl<A> ThreadWorkerState<A>
 }
 
 pub trait DrawingApp {
-    fn new(id: usize, max_id: usize)->Self;
+    fn new(id: usize, max_id: usize, x: u32, y: u32)->Self;
     fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8>;
     fn resize(&mut self, old_x: u32, old_y: u32, new_x: u32, new_y: u32);
 }

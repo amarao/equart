@@ -140,7 +140,7 @@ struct RandDraw{
 }
 
 impl DrawingApp for RandDraw{
-    fn new(id: usize, max_id: usize)->Self {
+    fn new(id: usize, max_id: usize, x: u32, y: u32)->Self {
         let color_bases = [
             [255, 0, 0],
             [255, 0,255],
@@ -193,7 +193,7 @@ struct Equart {
 }
 
 impl DrawingApp for Equart{
-    fn new(id: usize, max_id: usize)->Self {
+    fn new(id: usize, max_id: usize, x: u32, y: u32)->Self {
         Self{
             root_window_start_x: 0.0,
             root_window_start_y: 0.0,
