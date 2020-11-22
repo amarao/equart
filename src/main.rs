@@ -27,8 +27,8 @@ impl App {
             .exit_on_esc(true)
             .build().expect("Unable to create window");
         let mut settings = piston_window::EventSettings::new();
-        settings.ups = 60;
-        settings.max_fps = 60;
+        settings.ups = 120;
+        settings.max_fps = 120;
         let  events = piston_window::Events::new(settings);
         let control = Threads::new (DEFAULT_X, DEFAULT_Y, cpus, U::new);
         let zero = std::time::Duration::new(0, 0);
@@ -173,10 +173,10 @@ impl DrawingApp for RandDraw{
 }
 
 
-const WINDOW_X_START: f64 = -1.0;
-const WINDOW_X_END: f64 = 1.0;
-const WINDOW_Y_START: f64 = 1.0;
-const WINDOW_Y_END: f64 = 1.0;
+const WINDOW_X_START: f64 = -8.0;
+const WINDOW_X_END: f64 = 8.0;
+const WINDOW_Y_START: f64 = -1.5;
+const WINDOW_Y_END: f64 = 1.5;
 
 
 fn equart(x: f64, y:f64) -> f64{
@@ -256,15 +256,18 @@ impl Equart{
         // only 2x2 fixel matrix
         let start_x = self.root_window_start_x + self.fixel_size_x * x as f64;
         let start_y = self.root_window_start_y + self.fixel_size_y * y as f64;
-        let mut retval: Vec<[f64;2]> = Vec::with_capacity(4);
-        retval[0] = [start_x, start_y];
-        retval[1] = [start_x + self.fixel_size_x, start_y];
-        retval[2] = [start_x, start_y + self.fixel_size_y];
-        retval[3] = [start_x + self.fixel_size_x, start_y + self.fixel_size_y];
-        retval
+        vec![
+            [start_x, start_y],
+            [start_x + self.fixel_size_x, start_y],
+            [start_x, start_y + self.fixel_size_y],
+            [start_x + self.fixel_size_x, start_y + self.fixel_size_y],
+        ]
     }
     fn slice(start: f64, end: f64, id: usize, max_id: usize) -> (f64, f64){
-        (0.0, 1.0)
+        let span = (end - start)/max_id as f64;
+        let begin =  start + span * id as f64;
+        let end = begin + span;
+        (begin, end)
     }
     fn update_fixel_size(&mut self){
         self.fixel_size_x = (self.root_window_end_x - self.root_window_start_x)/self.pixel_size_x as f64;
@@ -273,49 +276,67 @@ impl Equart{
 }
 
 #[cfg(test)]
-mod equart_tests{
+mod equart_tests {
     use super::*;
     
     #[test]
-    fn empty_is_root(){
+    fn is_root_empty(){
         let data_in = vec![];
         assert_eq!(
             Equart::is_root(data_in, |_, __|{0.0}),
             false
         );
     }
+
     #[test]
-    fn zerores_is_root(){
+    fn is_root_zerores(){
         let data_in = vec![[0.0, 0.0]];
         assert_eq!(
             Equart::is_root(data_in, |_, __|{0.0}),
             true
         );
-        
     }
+
     #[test]
-    fn positive_is_root(){
+    fn is_root_positive(){
         let data_in = vec![[0.0, 0.0]];
         assert_eq!(
             Equart::is_root(data_in, |_, __|{1.0}),
             false
         );
-        
     }
+    
     #[test]
-    fn negative_is_root(){
+    fn is_root_negative(){
         let data_in = vec![[0.0, 0.0]];
         assert_eq!(
             Equart::is_root(data_in, |_, __|{-1.0}),
             false
         );
     }
+    
     #[test]
-    fn sign_change_is_root(){
+    fn is_root_sign_change(){
         let data_in = vec![[-1.0, -1.0], [1.0, 1.0]];
         assert_eq!(
             Equart::is_root(data_in, |x, __|{x}),
             true
         );
+    }
+
+
+    #[test]
+    fn slice_one(){
+         assert_eq!(Equart::slice(0.0, 1.0, 0, 1), (0.0, 1.0));
+    }
+    
+    #[test]
+    fn slice_first_half(){
+         assert_eq!(Equart::slice(0.0, 1.0, 0, 2), (0.0, 0.5));
+    }
+    
+    #[test]
+    fn slice_second_half(){
+         assert_eq!(Equart::slice(0.0, 1.0, 1, 2), (0.5, 1.0));
     }
 }
