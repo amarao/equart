@@ -144,7 +144,7 @@ struct RandDraw{
 }
 
 impl DrawingApp for RandDraw{
-    fn new(id: usize, max_id: usize, x: u32, y: u32)->Self {
+    fn new(id: usize, _max_id: usize, _x: u32, _y: u32)->Self {
         let color_bases = [
             [255, 0, 0],
             [255, 0,255],
@@ -333,5 +333,11 @@ mod equart_tests {
     #[test]
     fn slice_second_half(){
          assert_eq!(Equart::slice(0.0, 1.0, 1, 2), (0.5, 1.0));
+    }
+
+
+    #[test]
+    fn randdraw_works(){
+        drop(App::new::<RandDraw>("rand", 1, DEFAULT_X, DEFAULT_Y));
     }
 }

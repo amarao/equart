@@ -308,10 +308,10 @@ impl<A> ThreadWorkerState<A>
 
 pub trait DrawingApp {
     fn new(id: usize, max_id: usize, x: u32, y: u32)->Self;
-    fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8>{
+    fn calculate_pixel(&mut self, _x: u32, _y: u32) -> im::Rgba<u8>{
         im::Rgba([128, 128, 128, 255])
     }
-    fn resize(&mut self, new_x: u32, new_y: u32){
+    fn resize(&mut self, _new_x: u32, _new_y: u32){
 
     }
 }
