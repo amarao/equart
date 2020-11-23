@@ -1,6 +1,7 @@
 use image as im;
 use std::sync::mpsc::{Receiver, SyncSender, TryRecvError,sync_channel};
 use std::thread;
+use piston::{Event, Loop};
 
 pub type Buffer=im::ImageBuffer<im::Rgba<u8>,Vec<u8>>;
 
@@ -314,4 +315,114 @@ pub trait DrawingApp {
     fn resize(&mut self, _new_x: u32, _new_y: u32){
 
     }
+}
+
+
+pub struct App {
+    window: piston_window::PistonWindow,
+    events: piston_window::Events,
+    control: Threads,
+    start: std::time::Instant,
+    request_update_time: std::time::Duration,
+    recieve_time: std::time::Duration,
+    draw_time: std::time::Duration,
+    other_time: std::time::Duration,
+    frames: u64
+}
+
+impl App {
+    pub fn new<U>(title: &str, cpus: usize, start_x: u32, start_y: u32) -> Self 
+        where
+            U: DrawingApp + 'static
+        {
+        let window: piston_window::PistonWindow = 
+            piston_window::WindowSettings::new(title, (start_x, start_y))
+            .exit_on_esc(true)
+            .build().expect("Unable to create window");
+        let mut settings = piston_window::EventSettings::new();
+        settings.ups = 120;
+        settings.max_fps = 120;
+        let  events = piston_window::Events::new(settings);
+        let control = Threads::new (start_x, start_y, cpus, U::new);
+        let zero = std::time::Duration::new(0, 0);
+        Self {
+            window,
+            events,
+            control,
+            start: std::time::Instant::now(),
+            request_update_time: zero,
+            recieve_time: zero,
+            draw_time: zero,
+            other_time: zero,
+            frames: 0
+        }
+        
+    }
+    pub fn next_event(&mut self) -> Option<Event> {
+        self.events.next(& mut self.window)
+    }
+
+    pub fn after_render(&mut self){
+        let request_start = std::time::Instant::now();
+        self.control.request_update();
+        self.request_update_time += request_start.elapsed();
+        if self.start.elapsed().as_secs() > 0{
+            let elapsed = self.start.elapsed().as_secs_f32();
+            println!(
+                "FPS: {:.1}, req_time: {:.5}, recv_time {:.5}, draw_time: {:.5}, other: {:.5}",
+                self.frames as f32 / elapsed,
+                self.request_update_time.as_secs_f32()/elapsed,
+                self.recieve_time.as_secs_f32()/elapsed,
+                self.draw_time.as_secs_f32()/elapsed,
+                self.other_time.as_secs_f32()/elapsed
+            );
+            self.start = std::time::Instant::now();
+            self.frames = 0;
+            self.request_update_time = std::time::Duration::new(0,0);
+            self.recieve_time = std::time::Duration::new(0,0);
+            self.draw_time = std::time::Duration::new(0,0);
+            self.other_time = std::time::Duration::new(0,0);
+        }
+    }
+
+    pub fn render(&mut self, e: &Event){
+        let draw_start = std::time::Instant::now();
+        let mut texture_context = self.window.create_texture_context();
+        let textures = self.control.textures_iter(& mut texture_context);
+        self.window.draw_2d(
+            e,
+            |context, graph_2d, _device| {
+                let mut transform = context.transform;
+                for texture_data in textures {
+                    transform[1][2] = 1.0 - 2.0 * texture_data.span;
+                    piston_window::image(
+                        &texture_data.texture,
+                        transform,
+                        graph_2d
+                    );
+                }
+            }
+        );
+        self.frames +=1;
+        self.draw_time += draw_start.elapsed();
+    }
+
+    pub fn update(&mut self){
+        let recieve_start = std::time::Instant::now();
+        self.control.recieve_update();
+        self.recieve_time += recieve_start.elapsed();
+    }
+
+    pub fn input (&mut self, i: &piston::input::Input) {
+        if let piston::Input::Resize(piston::ResizeArgs{window_size:_, draw_size:[new_x, new_y]}) = i {
+            self.control.resize(*new_x, *new_y);
+        }
+    }
+
+    pub fn finish_event(&mut self, e: Event) {
+        let other_start = std::time::Instant::now();
+        self.window.event(&e);
+        self.other_time += other_start.elapsed();
+    }
+
 }
