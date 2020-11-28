@@ -1,7 +1,7 @@
 use image as im;
 use std::sync::mpsc::{Receiver, SyncSender, TryRecvError,sync_channel};
 use std::thread;
-use piston::{Event, Loop};
+use piston::Event;
 
 pub type Buffer=im::ImageBuffer<im::Rgba<u8>,Vec<u8>>;
 
