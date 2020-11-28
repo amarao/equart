@@ -1,3 +1,4 @@
+use crate::fixel;
 use crate::threads;
 use threads::DrawingApp;
 use image as im;
@@ -10,13 +11,14 @@ fn equart(x: f64, y:f64) -> f64{
     (1.0/x).sin() - y
 }
 
+
 pub struct Equart {  // per thread instance, each instance has own 'slice' to work with
-    root_window_start_x: f64,
-    root_window_end_x: f64,
-    root_window_start_y: f64,
-    root_window_end_y: f64,
-    fixel_size_x: f64, //pixel size for float window
-    fixel_size_y: f64, //pixel size for float window
+    math_start_x: f64,
+    math_end_x: f64,
+    math_start_y: f64,
+    math_end_y: f64,
+    fixel_size_x: f64,  // pixel size in math units
+    fixel_size_y: f64,  // pixel size in math units
     pixel_size_x: u32,
     pixel_size_y: u32
 }
@@ -25,10 +27,10 @@ impl DrawingApp for Equart{
     fn new(id: usize, max_id: usize, x: u32, y: u32)->Self {
         let slice = Equart::slice(WINDOW_Y_START, WINDOW_Y_END, id, max_id);
         let mut value = Self{
-            root_window_start_x: WINDOW_X_START,
-            root_window_end_x: WINDOW_X_END,
-            root_window_start_y: slice.0,
-            root_window_end_y: slice.1,
+            math_start_x: WINDOW_X_START,
+            math_end_x: WINDOW_X_END,
+            math_start_y: slice.0,
+            math_end_y: slice.1,
             fixel_size_x: 1.0,
             fixel_size_y: 1.0,
             pixel_size_x: x,
@@ -79,8 +81,8 @@ impl Equart{
 
     fn pixel2matrix(&self, x: u32, y: u32)-> Vec<[f64;2]> {
         // only 2x2 fixel matrix
-        let start_x = self.root_window_start_x + self.fixel_size_x * x as f64;
-        let start_y = self.root_window_start_y + self.fixel_size_y * y as f64;
+        let start_x = self.math_start_x + self.fixel_size_x * x as f64;
+        let start_y = self.math_start_y + self.fixel_size_y * y as f64;
         vec![
             [start_x, start_y],
             [start_x + self.fixel_size_x, start_y],
@@ -95,8 +97,8 @@ impl Equart{
         (begin, end)
     }
     fn update_fixel_size(&mut self){
-        self.fixel_size_x = (self.root_window_end_x - self.root_window_start_x)/self.pixel_size_x as f64;
-        self.fixel_size_y = (self.root_window_end_y - self.root_window_start_y)/self.pixel_size_y as f64;
+        self.fixel_size_x = (self.math_end_x - self.math_start_x)/self.pixel_size_x as f64;
+        self.fixel_size_y = (self.math_end_y - self.math_start_y)/self.pixel_size_y as f64;
     }
 }
 

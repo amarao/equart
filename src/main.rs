@@ -1,6 +1,7 @@
 mod equart;
 mod rand_draw;
 mod threads;
+mod fixel;
 
 use threads::App;
 use piston::{Event, Loop};
