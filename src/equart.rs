@@ -15,7 +15,6 @@ pub struct Equart {  // per thread instance, each instance has own 'slice' to wo
     root_window_end_x: f64,
     root_window_start_y: f64,
     root_window_end_y: f64,
-    roots_map: Vec<Vec<f64>>,
     fixel_size_x: f64, //pixel size for float window
     fixel_size_y: f64, //pixel size for float window
     pixel_size_x: u32,
@@ -30,7 +29,6 @@ impl DrawingApp for Equart{
             root_window_end_x: WINDOW_X_END,
             root_window_start_y: slice.0,
             root_window_end_y: slice.1,
-            roots_map: vec![vec![1.0, 2.0], vec![3.0, 4.0]],
             fixel_size_x: 1.0,
             fixel_size_y: 1.0,
             pixel_size_x: x,
@@ -47,7 +45,7 @@ impl DrawingApp for Equart{
         self.update_fixel_size();
     }
 
-    fn calculate_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
+    fn get_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
         let matrix = self.pixel2matrix(x, y);
         match Equart::is_root(matrix, equart) {
             true => im::Rgba([0, 0, 0, 255]),

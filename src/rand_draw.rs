@@ -23,7 +23,7 @@ impl DrawingApp for RandDraw{
             color: color_bases[id % color_bases.len()]
         }
     }
-    fn calculate_pixel(&mut self, _x: u32, _y: u32) -> im::Rgba<u8> {
+    fn get_pixel(&mut self, _x: u32, _y: u32) -> im::Rgba<u8> {
         self.factor ^= self.factor << 13;
         self.factor ^= self.factor >> 17;
         self.factor ^= self.factor << 5;
