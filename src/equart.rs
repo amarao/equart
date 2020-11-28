@@ -1,5 +1,3 @@
-
-
 use crate::threads;
 use threads::DrawingApp;
 use image as im;
