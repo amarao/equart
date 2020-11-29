@@ -1,5 +1,3 @@
-use array2d::Array2D;
-use std::ops::Index;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RootType{
@@ -8,7 +6,7 @@ pub enum RootType{
     OutOfDomain
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point(pub f64, pub f64);
 
 
@@ -16,9 +14,9 @@ pub struct Point(pub f64, pub f64);
 impl Point {
     pub fn in_window(&self, start: &Self, end: &Self) -> bool{
         self.0 >= start.0 &&
-        self.0 <= end.0 &&
+        self.0 < end.0 &&
         self.1 >= start.1 &&
-        self.1 <= end.1 
+        self.1 < end.1 
     }
 }
 
@@ -129,8 +127,8 @@ impl Fixel {
                 let win_end = Point(start.0 + (step_x + 1) as f64 * dx, start.1 + (step_y + 1) as f64 * dy);
                 if !self.has_probes(&win_start, &win_end){
                     let new_point = Point(
-                        start.0 + (step_x as f64 * dx)/2.0,
-                        start.1 + (step_y as f64 * dy)/2.0,
+                        start.0 + (step_x as f64 * dx) + dx / 2.0,
+                        start.1 + (step_y as f64 * dy) + dy / 2.0,
                     );
                     self.add_probe(new_point, &rel);
                     countdown -= 1;
@@ -254,7 +252,27 @@ mod fixel_tests {
     }
 
     #[test]
-    fn add_samples_in_range() {
+    fn add_samples_uniqueness() {
+        let mut points: Vec<Point> = Vec::new();
+        let mut f = Fixel::new();
+        for x in 2..15{
+            f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), x);
+        }
+        for probe in f.exact_roots.iter().chain(
+            f.positive.iter().chain(
+                f.negative.iter().chain(
+                    f.out_of_domain.iter()
+                )
+            )
+        ){
+            println!("{:?}", probe);
+            assert!(!points.contains(probe));
+            points.push(*probe);
+        }
+    }
+
+    #[test]
+    fn add_samples_are_in_range() {
         let mut f = Fixel::new();
         let start = Point(-1.0, -1.0);
         let end = Point(1.0, 1.0);

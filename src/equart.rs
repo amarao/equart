@@ -20,8 +20,8 @@ pub struct Equart {  // per thread instance, each instance has own 'slice' to wo
     fixels: array2d::Array2D<fixel::Fixel>,
     max_target_depth: u32,
     min_achived_depth: u32,
-    id: usize,
-    max_id: usize,
+    // id: usize,
+    // max_id: usize,
 }
 
 impl DrawingApp for Equart{
@@ -33,20 +33,19 @@ impl DrawingApp for Equart{
             fixels: array2d::Array2D::filled_with(fixel::Fixel::new(), x as usize, y as usize),
             fixel_size_x: (WINDOW_X_END - WINDOW_X_START)/x as f64,
             fixel_size_y: (slice.1 - slice.0)/y as f64,
-            max_target_depth: 64,
-            min_achived_depth: 2,
-            id: id,
-            max_id: max_id
+            max_target_depth: 16,
+            min_achived_depth: 8,
+            // id: id,
+            // max_id: max_id
         }
     }
 
     fn resize(&mut self, x: u32, y: u32){
         // FIXME TODO
         println!("resize fixels");
-        let slice = Self::slice(WINDOW_Y_START, WINDOW_Y_END, self.id, self.max_id);
         self.fixels = array2d::Array2D::filled_with(fixel::Fixel::new(), x as usize, y as usize);
         self.fixel_size_x = (WINDOW_X_END - WINDOW_X_START)/x as f64;
-        self.fixel_size_y = (slice.1 - slice.0)/y as f64;
+        self.fixel_size_y = (self.window_end.1 - self.window_end.0)/y as f64;
     }
 
     fn get_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
@@ -59,9 +58,11 @@ impl DrawingApp for Equart{
     fn next_line(&mut self, y: u32){}
     fn next_frame(&mut self){
         if self.min_achived_depth >= self.max_target_depth{
+            println!("done");
             return;
         }
         self.min_achived_depth += 1; // Issue with resizes, too much roots at once
+        println!("{}",  self.min_achived_depth );
         for y in 0..self.fixels.row_len(){
             for x in 0..self.fixels.column_len(){
                 let (start, end) = self.pixel2fixel(x, y);
