@@ -42,10 +42,10 @@ impl DrawingApp for Equart{
 
     fn resize(&mut self, x: u32, y: u32){
         // FIXME TODO
-        println!("resize fixels");
         self.fixels = array2d::Array2D::filled_with(fixel::Fixel::new(), x as usize, y as usize);
         self.fixel_size_x = (WINDOW_X_END - WINDOW_X_START)/x as f64;
-        self.fixel_size_y = (self.window_end.1 - self.window_end.0)/y as f64;
+        self.fixel_size_y = (self.window_end.1 - self.window_start.1)/y as f64;
+        self.min_achived_depth = 4;
     }
 
     fn get_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
