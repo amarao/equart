@@ -118,14 +118,12 @@ impl Fixel {
         let side = (expected_probes as f64).sqrt().ceil() as u32;
         let need_to_place = expected_probes - self.probes;
         let mut countdown = need_to_place;
-        let dx = end.0 - start.0;
-        let dy = end.1 - start.1;
-        println!("side: {}, {}x{}", side, dx, dy);
+        let dx = (end.0 - start.0)/side as f64;
+        let dy = (end.1 - start.1)/side as f64;
         for step_x in 0..side {
             for step_y in 0..side {
                 let win_start = Point(start.0 + step_x as f64 * dx, start.1 + step_y as f64 * dy);
                 let win_end = Point(start.0 + (step_x + 1) as f64 * dx, start.1 + (step_y + 1) as f64 * dy);
-                println!("probing {:?}, {:?}", win_start, win_end);
                 if !self.has_probes(&win_start, &win_end){
                     let new_point = Point(
                         start.0 + (step_x as f64 * dx)/2.0,
@@ -159,7 +157,7 @@ mod point_tests {
     #[test]
     fn in_window_inside(){
         let point = Point(0.0, 0.0);
-        assert_eq!(point.in_window(&Point(-1.0, -1.0), &Point(1.0, 1.0)), true);
+        assert!(point.in_window(&Point(-1.0, -1.0), &Point(1.0, 1.0)));
     }
 
     #[test]
@@ -242,10 +240,33 @@ mod fixel_tests {
     }
 
     #[test]
-    fn add_samples() {
+    fn add_samples_trivial() {
         let mut f = Fixel::new();
-        assert_eq!(f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 4), 4);
-        assert_eq!(f.probes, 4);
+        assert_eq!(f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 2), 2);
+        assert_eq!(f.probes, 2);
+    }
+    #[test]
+    fn add_samples_next() {
+        let mut f = Fixel::new();
+        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 4);
+        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 13);
+        assert_eq!(f.probes, 13);
+    }
+    #[test]
+    fn add_samples_in_range() {
+        let mut f = Fixel::new();
+        let start = Point(-1.0, -1.0);
+        let end = Point(1.0, 1.0);
+        f.add_samples(|_, __| {0.0}, &start, &end, 13);
+        for probe in f.exact_roots.iter().chain(
+            f.positive.iter().chain(
+                f.negative.iter().chain(
+                    f.out_of_domain.iter()
+                )
+            )
+        ){
+            assert!(probe.in_window(&start, &end));
+        }
     }
 }
 
