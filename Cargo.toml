@@ -12,4 +12,4 @@ vecmath = "*"
 rand = "*"
 num_cpus = "*"
 gfx_device_gl = "*"
-
+array2d = "*"

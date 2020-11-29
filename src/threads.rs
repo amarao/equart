@@ -295,10 +295,12 @@ impl<A> ThreadWorkerState<A>
     fn draw(&mut self, buf: & mut Buffer) -> u32 {
         if self.line >= buf.height(){
             self.line = 0;
+        }
+        let y = self.line;
+        if y == 0{
             self.app.next_frame();
         }
-        self.app.next_line(self.line);
-        let y = self.line;
+        self.app.next_line(y);
         for x in 0..buf.width(){
             buf.put_pixel(x, y, self.app.get_pixel(x, y))
             
@@ -314,14 +316,10 @@ impl<A> ThreadWorkerState<A>
 
 pub trait DrawingApp {
     fn new(id: usize, max_id: usize, x: u32, y: u32)->Self;
-    fn get_pixel(&mut self, _x: u32, _y: u32) -> im::Rgba<u8>{
-        im::Rgba([128, 128, 128, 255])
-    }
-    fn next_line(&mut self, y: u32){}
-    fn next_frame(&mut self){}
-    fn resize(&mut self, _new_x: u32, _new_y: u32){
-
-    }
+    fn get_pixel(&mut self, _x: u32, _y: u32) -> im::Rgba<u8>;
+    fn next_line(&mut self, y: u32);
+    fn next_frame(&mut self);
+    fn resize(&mut self, _new_x: u32, _new_y: u32);
 }
 
 

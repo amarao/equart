@@ -1,3 +1,6 @@
+use array2d::Array2D;
+use std::ops::Index;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RootType{
     NoRoot,
@@ -6,12 +9,12 @@ pub enum RootType{
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct Point(f64, f64);
+pub struct Point(pub f64, pub f64);
 
 
 /// Return true is point is within a given window
 impl Point {
-    fn in_window(&self, start: &Self, end: &Self) -> bool{
+    pub fn in_window(&self, start: &Self, end: &Self) -> bool{
         self.0 >= start.0 &&
         self.0 <= end.0 &&
         self.1 >= start.1 &&
@@ -35,7 +38,7 @@ impl Point {
 /// are_roots is cached value and is updated every time anything within fixel is
 /// changed.
 /// probes is cached value of total number of points in all four categories.
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Fixel {
     exact_roots: Vec<Point>,
     negative: Vec<Point>,
@@ -46,7 +49,7 @@ pub struct Fixel {
 }
 
 impl Fixel {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Fixel{
             exact_roots: Vec::new(),
             negative: Vec::new(),
@@ -57,7 +60,7 @@ impl Fixel {
         }
     }
 
-    fn root_type(&self) -> RootType{
+    pub fn root_type(&self) -> RootType{
         self.roots
     }
     
@@ -109,7 +112,7 @@ impl Fixel {
 
     /// Automatically calculate if new probes are needed, and calculate position
     /// of a new probes.
-    fn add_samples<F>(&mut self,rel: F, start: &Point, end: &Point , expected_probes: u32) -> u32
+    pub fn add_samples<F>(&mut self,rel: F, start: &Point, end: &Point, expected_probes: u32) -> u32
         where F: Fn(f64, f64) -> f64
     {
         if self.probes >= expected_probes {
@@ -140,11 +143,8 @@ impl Fixel {
         }
         panic!("No place found for {} dots in a fixel from {}x{} to {}x{} ", countdown, start.0, start.1, end.0, end.1);
     }
-
 }
 
-
-#[cfg(test)]
 mod point_tests {
     use super::*;
 
@@ -217,7 +217,6 @@ mod fixel_tests {
         assert_eq! (f.root_type(), RootType::NoRoot);
     }
 
-
     #[test]
     fn fixel_signchange() {
         let mut f = Fixel::new();
@@ -245,6 +244,7 @@ mod fixel_tests {
         assert_eq!(f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 2), 2);
         assert_eq!(f.probes, 2);
     }
+
     #[test]
     fn add_samples_next() {
         let mut f = Fixel::new();
@@ -252,6 +252,7 @@ mod fixel_tests {
         f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 13);
         assert_eq!(f.probes, 13);
     }
+
     #[test]
     fn add_samples_in_range() {
         let mut f = Fixel::new();

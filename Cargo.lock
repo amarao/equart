@@ -45,6 +45,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "array2d"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "224b2db9d3e7dd068c8b07b186076ee668ce38810d0ba12c80dacbcbb7cfc9e8"
+
+[[package]]
 name = "autocfg"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -267,6 +273,7 @@ checksum = "bb1f6b1ce1c140482ea30ddd3335fc0024ac7ee112895426e0a629a6c20adfe3"
 name = "equart"
 version = "0.2.0"
 dependencies = [
+ "array2d",
  "gfx_device_gl",
  "image",
  "num_cpus",

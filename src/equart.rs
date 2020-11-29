@@ -2,8 +2,8 @@ use crate::fixel;
 use crate::threads;
 use threads::DrawingApp;
 use image as im;
-const WINDOW_X_START: f64 = -8.0;
-const WINDOW_X_END: f64 = 8.0;
+const WINDOW_X_START: f64 = -4.0;
+const WINDOW_X_END: f64 = 4.0;
 const WINDOW_Y_START: f64 = -1.5;
 const WINDOW_Y_END: f64 = 1.5;
 
@@ -13,158 +13,81 @@ fn equart(x: f64, y:f64) -> f64{
 
 
 pub struct Equart {  // per thread instance, each instance has own 'slice' to work with
-    math_start_x: f64,
-    math_end_x: f64,
-    math_start_y: f64,
-    math_end_y: f64,
-    fixel_size_x: f64,  // pixel size in math units
-    fixel_size_y: f64,  // pixel size in math units
-    pixel_size_x: u32,
-    pixel_size_y: u32
+    window_start: fixel::Point,
+    window_end: fixel::Point,
+    fixel_size_x: f64,
+    fixel_size_y: f64,
+    fixels: array2d::Array2D<fixel::Fixel>,
+    max_target_depth: u32,
+    min_achived_depth: u32,
+    id: usize,
+    max_id: usize,
 }
 
 impl DrawingApp for Equart{
-    fn new(id: usize, max_id: usize, x: u32, y: u32)->Self {
-        let slice = Equart::slice(WINDOW_Y_START, WINDOW_Y_END, id, max_id);
-        let mut value = Self{
-            math_start_x: WINDOW_X_START,
-            math_end_x: WINDOW_X_END,
-            math_start_y: slice.0,
-            math_end_y: slice.1,
-            fixel_size_x: 1.0,
-            fixel_size_y: 1.0,
-            pixel_size_x: x,
-            pixel_size_y: y
-
-        };
-        value.update_fixel_size();
-        value
-        
+    fn new(id: usize, max_id: usize, x: u32, y: u32)-> Self {
+        let slice = Self::slice(WINDOW_Y_START, WINDOW_Y_END, id, max_id);
+        Self{
+            window_start: fixel::Point(WINDOW_X_START, slice.0),
+            window_end: fixel::Point(WINDOW_X_END, slice.1),
+            fixels: array2d::Array2D::filled_with(fixel::Fixel::new(), x as usize, y as usize),
+            fixel_size_x: (WINDOW_X_END - WINDOW_X_START)/x as f64,
+            fixel_size_y: (slice.1 - slice.0)/y as f64,
+            max_target_depth: 64,
+            min_achived_depth: 2,
+            id: id,
+            max_id: max_id
+        }
     }
+
     fn resize(&mut self, x: u32, y: u32){
-        self.pixel_size_x = x;
-        self.pixel_size_y = y;
-        self.update_fixel_size();
+        // FIXME TODO
+        println!("resize fixels");
+        let slice = Self::slice(WINDOW_Y_START, WINDOW_Y_END, self.id, self.max_id);
+        self.fixels = array2d::Array2D::filled_with(fixel::Fixel::new(), x as usize, y as usize);
+        self.fixel_size_x = (WINDOW_X_END - WINDOW_X_START)/x as f64;
+        self.fixel_size_y = (slice.1 - slice.0)/y as f64;
     }
 
     fn get_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
-        let matrix = self.pixel2matrix(x, y);
-        match Equart::is_root(matrix, equart) {
-            true => im::Rgba([0, 0, 0, 255]),
-            false => im::Rgba([255 ,255, 255, 255]),
+        match self.fixels[(x as usize, y as usize)].root_type() {
+            fixel::RootType::NoRoot => im::Rgba([255,255,255,255]),
+            fixel::RootType::Root => im::Rgba([0,0,0,255]),
+            fixel::RootType::OutOfDomain => im::Rgba([255,0,0,255])
         }
+    }
+    fn next_line(&mut self, y: u32){}
+    fn next_frame(&mut self){
+        if self.min_achived_depth >= self.max_target_depth{
+            return;
+        }
+        self.min_achived_depth += 1; // Issue with resizes, too much roots at once
+        for y in 0..self.fixels.row_len(){
+            for x in 0..self.fixels.column_len(){
+                let (start, end) = self.pixel2fixel(x, y);
+                self.fixels[(x, y)].add_samples(equart, &start, &end, self.min_achived_depth);
+            }
+        }
+
     }
 }
 
 impl Equart{
-    fn is_root<F>(matrix: Vec<[f64;2]>, f: F) -> bool 
-    where
-        F: Fn(f64, f64) -> f64
-    {
-        let mut zeroes: bool = false;
-        let mut positive: bool = false;
-        let mut negative: bool = false;
-        for [x,y ] in matrix {
-            let res = f(x, y);
-            if res == 0.0 {
-                zeroes = true;
-            } else if res < 0.0 {
-                negative = true;
-            } else if res > 0.0 {
-                positive = true;
-            }
-            // NaN is skippeed.
-
-        }
-        zeroes || (positive && negative)
-    }
-
-    fn pixel2matrix(&self, x: u32, y: u32)-> Vec<[f64;2]> {
-        // only 2x2 fixel matrix
-        let start_x = self.math_start_x + self.fixel_size_x * x as f64;
-        let start_y = self.math_start_y + self.fixel_size_y * y as f64;
-        vec![
-            [start_x, start_y],
-            [start_x + self.fixel_size_x, start_y],
-            [start_x, start_y + self.fixel_size_y],
-            [start_x + self.fixel_size_x, start_y + self.fixel_size_y],
-        ]
+    /// Convert pixel coordinates to fixel window
+    fn pixel2fixel(&self, x: usize, y: usize) -> (fixel::Point, fixel::Point){
+        let fixel_start_x = self.window_start.0 + self.fixel_size_x * x as f64;
+        let fixel_start_y = self.window_start.1 + self.fixel_size_y * y as f64;
+        let fixel_end_x = fixel_start_x + self.fixel_size_x;
+        let fixel_end_y = fixel_start_y + self.fixel_size_y;
+        return (
+            fixel::Point(fixel_start_x, fixel_start_y),
+            fixel::Point(fixel_end_x, fixel_end_y)
+        );
     }
     fn slice(start: f64, end: f64, id: usize, max_id: usize) -> (f64, f64){
         let span = (end - start)/max_id as f64;
         let begin =  start + span * id as f64;
         let end = begin + span;
         (begin, end)
-    }
-    fn update_fixel_size(&mut self){
-        self.fixel_size_x = (self.math_end_x - self.math_start_x)/self.pixel_size_x as f64;
-        self.fixel_size_y = (self.math_end_y - self.math_start_y)/self.pixel_size_y as f64;
-    }
-}
-
-#[cfg(test)]
-mod equart_tests {
-    use super::*;
-    
-    #[test]
-    fn is_root_empty(){
-        let data_in = vec![];
-        assert_eq!(
-            Equart::is_root(data_in, |_, __|{0.0}),
-            false
-        );
-    }
-
-    #[test]
-    fn is_root_zerores(){
-        let data_in = vec![[0.0, 0.0]];
-        assert_eq!(
-            Equart::is_root(data_in, |_, __|{0.0}),
-            true
-        );
-    }
-
-    #[test]
-    fn is_root_positive(){
-        let data_in = vec![[0.0, 0.0]];
-        assert_eq!(
-            Equart::is_root(data_in, |_, __|{1.0}),
-            false
-        );
-    }
-    
-    #[test]
-    fn is_root_negative(){
-        let data_in = vec![[0.0, 0.0]];
-        assert_eq!(
-            Equart::is_root(data_in, |_, __|{-1.0}),
-            false
-        );
-    }
-    
-    #[test]
-    fn is_root_sign_change(){
-        let data_in = vec![[-1.0, -1.0], [1.0, 1.0]];
-        assert_eq!(
-            Equart::is_root(data_in, |x, __|{x}),
-            true
-        );
-    }
-
-
-    #[test]
-    fn slice_one(){
-         assert_eq!(Equart::slice(0.0, 1.0, 0, 1), (0.0, 1.0));
-    }
-    
-    #[test]
-    fn slice_first_half(){
-         assert_eq!(Equart::slice(0.0, 1.0, 0, 2), (0.0, 0.5));
-    }
-    
-    #[test]
-    fn slice_second_half(){
-         assert_eq!(Equart::slice(0.0, 1.0, 1, 2), (0.5, 1.0));
-    }
-
+    }       
 }
