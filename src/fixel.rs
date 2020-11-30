@@ -94,22 +94,30 @@ impl Fixel {
         }
         if self.exact_roots.len() > 0 {
             self.roots = RootType::Root;
-            return RootType::Root;
+            return self.roots;
         }
         if self.negative.len() > 0 && self.positive.len() > 0 {
             self.roots = RootType::Root;
-            return RootType::Root;
+            return self.roots;
         }
         if self.negative.len() > 0 {
+            if self.x_neighbor == RootType::NoRoot(RootMood::Positive) || self.y_neighbor == RootType::NoRoot(RootMood::Positive) {
+                self.roots = RootType::Root;
+                return self.roots;
+            }
             self.roots = RootType::NoRoot(RootMood::Negative);
-            return RootType::NoRoot(RootMood::Negative);
+            return self.roots;
         }
         if self.positive.len() > 0 {
+            if self.x_neighbor == RootType::NoRoot(RootMood::Negative) || self.y_neighbor == RootType::NoRoot(RootMood::Negative) {
+                self.roots = RootType::Root;
+                return self.roots;
+            }
             self.roots = RootType::NoRoot(RootMood::Positive);
-            return RootType::NoRoot(RootMood::Positive);
+            return self.roots;
         }
         self.roots = RootType::NoRoot(RootMood::NoData);
-        return RootType::NoRoot(RootMood::NoData);
+        return self.roots;
     }
 
     /// Return if there are any probes in a given window
