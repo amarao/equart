@@ -63,10 +63,22 @@ impl DrawingApp for Equart{
             return;
         }
         self.min_achived_depth += 1; // Issue with resizes, too much roots at once
+        let mut y_neighbors: Vec<fixel::RootType> = Vec::with_capacity(self.fixels.column_len());
+        let mut x_neighbor = fixel::RootType::NoRoot(fixel::RootMood::NoData);
+        for _ in 0..self.fixels.column_len(){
+            y_neighbors.push(fixel::RootType::NoRoot(fixel::RootMood::NoData));
+        };
         for y in 0..self.fixels.row_len(){
             for x in 0..self.fixels.column_len(){
                 let (start, end) = self.pixel2fixel(x, y);
-                self.fixels[(x, y)].add_samples(equart, &start, &end, self.min_achived_depth);
+                let root_type = self.fixels[(x, y)].add_samples(
+                    equart,
+                    &start, &end,
+                    self.min_achived_depth,
+                    x_neighbor, y_neighbors[y]
+                );
+                y_neighbors[y] = root_type;
+                x_neighbor = root_type;
             }
         }
 

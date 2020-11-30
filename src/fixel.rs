@@ -50,6 +50,8 @@ pub struct Fixel {
     pub positive: Vec<Point>,
     pub out_of_domain: Vec<Point>,
     pub roots: RootType,
+    pub x_neighbor: RootType,
+    pub y_neighbor: RootType,
     pub probes: u32
 }
 
@@ -61,6 +63,8 @@ impl Fixel {
             positive: Vec::new(),
             out_of_domain: Vec::new(),
             roots: RootType::NoRoot(RootMood::NoData),
+            x_neighbor: RootType::NoRoot(RootMood::NoData),
+            y_neighbor: RootType::NoRoot(RootMood::NoData),
             probes: 0
         }
     }
@@ -83,31 +87,29 @@ impl Fixel {
         self.probes += 1;
     }
 
-    fn search_roots(&mut self) {
+    fn search_roots(&mut self) -> RootType {
         if self.out_of_domain.len() > 0 {
             self.roots = RootType::OutOfDomain;
-            return;
+            return RootType::OutOfDomain;
         }
         if self.exact_roots.len() > 0 {
             self.roots = RootType::Root;
-            return;
+            return RootType::Root;
         }
         if self.negative.len() > 0 && self.positive.len() > 0 {
             self.roots = RootType::Root;
-            return;
-        }
-        if self.negative.len() == 0 && self.positive.len() == 0 {
-           self.roots = RootType::NoRoot(RootMood::NoData);
-            return;
+            return RootType::Root;
         }
         if self.negative.len() > 0 {
             self.roots = RootType::NoRoot(RootMood::Negative);
-            return;
+            return RootType::NoRoot(RootMood::Negative);
         }
         if self.positive.len() > 0 {
             self.roots = RootType::NoRoot(RootMood::Positive);
-            return;
+            return RootType::NoRoot(RootMood::Positive);
         }
+        self.roots = RootType::NoRoot(RootMood::NoData);
+        return RootType::NoRoot(RootMood::NoData);
     }
 
     /// Return if there are any probes in a given window
@@ -128,11 +130,13 @@ impl Fixel {
 
     /// Automatically calculate if new probes are needed, and calculate position
     /// of a new probes.
-    pub fn add_samples<F>(&mut self,rel: F, start: &Point, end: &Point, expected_probes: u32) -> u32
+    pub fn add_samples<F>(&mut self,rel: F, start: &Point, end: &Point, expected_probes: u32, x_neighbor: RootType, y_neighbor: RootType) -> RootType
         where F: Fn(f64, f64) -> f64
     {
+        self.x_neighbor = x_neighbor;
+        self.y_neighbor = y_neighbor;
         if self.probes >= expected_probes {
-            return 0
+            return self.root_type();
         }
         let side = (expected_probes as f64).sqrt().ceil() as u32;
         let need_to_place = expected_probes - self.probes;
@@ -151,8 +155,7 @@ impl Fixel {
                     self.add_probe(new_point, &rel);
                     countdown -= 1;
                     if countdown == 0 {
-                        self.search_roots();
-                        return need_to_place;
+                        return self.search_roots();
                     }
                 }
             }
@@ -257,15 +260,15 @@ mod fixel_tests {
     #[test]
     fn add_samples_trivial() {
         let mut f = Fixel::new();
-        assert_eq!(f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 2), 2);
+        assert_eq!(f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 2, RootType::NoRoot(RootMood::NoData), RootType::NoRoot(RootMood::NoData)), 2);
         assert_eq!(f.probes, 2);
     }
 
     #[test]
     fn add_samples_next() {
         let mut f = Fixel::new();
-        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 4);
-        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 13);
+        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 4, RootType::NoRoot(RootMood::NoData), RootType::NoRoot(RootMood::NoData));
+        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 13, RootType::NoRoot(RootMood::NoData), RootType::NoRoot(RootMood::NoData));
         assert_eq!(f.probes, 13);
     }
 
@@ -274,7 +277,7 @@ mod fixel_tests {
         let mut points: Vec<Point> = Vec::new();
         let mut f = Fixel::new();
         for x in 2..15{
-            f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), x);
+            f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), x, RootType::NoRoot(RootMood::NoData), RootType::NoRoot(RootMood::NoData));
         }
         for probe in f.exact_roots.iter().chain(
             f.positive.iter().chain(
@@ -294,7 +297,7 @@ mod fixel_tests {
         let mut f = Fixel::new();
         let start = Point(-1.0, -1.0);
         let end = Point(1.0, 1.0);
-        f.add_samples(|_, __| {0.0}, &start, &end, 13);
+        f.add_samples(|_, __| {0.0}, &start, &end, 13, RootType::NoRoot(RootMood::NoData), RootType::NoRoot(RootMood::NoData));
         for probe in f.exact_roots.iter().chain(
             f.positive.iter().chain(
                 f.negative.iter().chain(
