@@ -157,8 +157,8 @@ impl Fixel {
                 let win_end = Point(start.0 + (step_x + 1) as f64 * dx, start.1 + (step_y + 1) as f64 * dy);
                 if !self.has_probes(&win_start, &win_end){
                     let new_point = Point(
-                        start.0 + (step_x as f64 * dx),
-                        start.1 + (step_y as f64 * dy)
+                        start.0 + ((step_x +1) as f64 * dx),
+                        start.1 + ((step_y + 1) as f64 * dy)
                     );
                     self.add_probe(new_point, &rel);
                     countdown -= 1;
