@@ -2,13 +2,13 @@ use crate::fixel;
 use crate::threads;
 use threads::DrawingApp;
 use image as im;
-const WINDOW_X_START: f64 = -4.0;
-const WINDOW_X_END: f64 = 4.0;
-const WINDOW_Y_START: f64 = -1.5;
-const WINDOW_Y_END: f64 = 1.5;
+const WINDOW_X_START: f64 = -1.0;
+const WINDOW_X_END: f64 = 1.0;
+const WINDOW_Y_START: f64 = -1.0;
+const WINDOW_Y_END: f64 = 1.0;
 
 fn equart(x: f64, y:f64) -> f64{
-    (1.0/x).sin() - y
+    x*x + y*y - 0.5
 }
 
 
@@ -50,19 +50,19 @@ impl DrawingApp for Equart{
 
     fn get_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
         match self.fixels[(x as usize, y as usize)].root_type() {
-            fixel::RootType::NoRoot => im::Rgba([255,255,255,255]),
+            fixel::RootType::NoRoot(fixel::RootMood::NoData) => im::Rgba([255,255,255,255]),
+            fixel::RootType::NoRoot(fixel::RootMood::Positive) => im::Rgba([255,255,240,255]),
+            fixel::RootType::NoRoot(fixel::RootMood::Negative) => im::Rgba([240,255,255,255]),
             fixel::RootType::Root => im::Rgba([0,0,0,255]),
             fixel::RootType::OutOfDomain => im::Rgba([255,0,0,255])
         }
     }
-    fn next_line(&mut self, y: u32){}
+    fn next_line(&mut self, _y: u32){}
     fn next_frame(&mut self){
         if self.min_achived_depth >= self.max_target_depth{
-            println!("done");
             return;
         }
         self.min_achived_depth += 1; // Issue with resizes, too much roots at once
-        println!("{}",  self.min_achived_depth );
         for y in 0..self.fixels.row_len(){
             for x in 0..self.fixels.column_len(){
                 let (start, end) = self.pixel2fixel(x, y);

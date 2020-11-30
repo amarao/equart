@@ -36,7 +36,7 @@ impl DrawingApp for RandDraw{
         ])
     }
     
-    fn next_line(&mut self, y: u32){}
+    fn next_line(&mut self, _y: u32){}
     fn next_frame(&mut self){}
     fn resize(&mut self, _new_x: u32, _new_y: u32){
     }

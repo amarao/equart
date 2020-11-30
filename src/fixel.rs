@@ -1,7 +1,14 @@
+#[derive(Clone, Copy, Debug, PartialEq)]
+/// Describe type of root absence
+pub enum RootMood{
+    NoData,
+    Positive,
+    Negative
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RootType{
-    NoRoot,
+    NoRoot(RootMood),
     Root,
     OutOfDomain
 }
@@ -10,13 +17,13 @@ pub enum RootType{
 pub struct Point(pub f64, pub f64);
 
 
-/// Return true is point is within a given window
+/// Return true if point is within a given window
 impl Point {
     pub fn in_window(&self, start: &Self, end: &Self) -> bool{
-        self.0 >= start.0 &&
-        self.0 < end.0 &&
-        self.1 >= start.1 &&
-        self.1 < end.1 
+        self.0 > start.0 &&
+        self.0 <= end.0 &&
+        self.1 > start.1 &&
+        self.1 <= end.1 
     }
 }
 
@@ -38,12 +45,12 @@ impl Point {
 /// probes is cached value of total number of points in all four categories.
 #[derive(Debug,Clone)]
 pub struct Fixel {
-    exact_roots: Vec<Point>,
-    negative: Vec<Point>,
-    positive: Vec<Point>,
-    out_of_domain: Vec<Point>,
-    roots: RootType,
-    probes: u32
+    pub exact_roots: Vec<Point>,
+    pub negative: Vec<Point>,
+    pub positive: Vec<Point>,
+    pub out_of_domain: Vec<Point>,
+    pub roots: RootType,
+    pub probes: u32
 }
 
 impl Fixel {
@@ -53,7 +60,7 @@ impl Fixel {
             negative: Vec::new(),
             positive: Vec::new(),
             out_of_domain: Vec::new(),
-            roots: RootType::NoRoot,
+            roots: RootType::NoRoot(RootMood::NoData),
             probes: 0
         }
     }
@@ -86,9 +93,20 @@ impl Fixel {
             return;
         }
         if self.negative.len() > 0 && self.positive.len() > 0 {
-            self.roots = RootType::Root
-        }else {
-            self.roots = RootType::NoRoot
+            self.roots = RootType::Root;
+            return;
+        }
+        if self.negative.len() == 0 && self.positive.len() == 0 {
+           self.roots = RootType::NoRoot(RootMood::NoData);
+            return;
+        }
+        if self.negative.len() > 0 {
+            self.roots = RootType::NoRoot(RootMood::Negative);
+            return;
+        }
+        if self.positive.len() > 0 {
+            self.roots = RootType::NoRoot(RootMood::Positive);
+            return;
         }
     }
 
@@ -127,8 +145,8 @@ impl Fixel {
                 let win_end = Point(start.0 + (step_x + 1) as f64 * dx, start.1 + (step_y + 1) as f64 * dy);
                 if !self.has_probes(&win_start, &win_end){
                     let new_point = Point(
-                        start.0 + (step_x as f64 * dx) + dx / 2.0,
-                        start.1 + (step_y as f64 * dy) + dy / 2.0,
+                        start.0 + (step_x as f64 * dx),
+                        start.1 + (step_y as f64 * dy)
                     );
                     self.add_probe(new_point, &rel);
                     countdown -= 1;
