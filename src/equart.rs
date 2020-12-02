@@ -34,7 +34,7 @@ impl DrawingApp for Equart{
             fixel_size_x: (WINDOW_X_END - WINDOW_X_START)/x as f64,
             fixel_size_y: (slice.1 - slice.0)/y as f64,
             max_target_depth: 16,
-            min_achived_depth: 8,
+            min_achived_depth: 4,
             // id: id,
             // max_id: max_id
         }
@@ -50,10 +50,14 @@ impl DrawingApp for Equart{
 
     fn get_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
         match self.fixels[(x as usize, y as usize)].root_type() {
-            fixel::RootType::NoRoot(fixel::RootMood::NoData) => im::Rgba([255,255,255,255]),
-            fixel::RootType::NoRoot(fixel::RootMood::Positive) => im::Rgba([255,255,240,255]),
-            fixel::RootType::NoRoot(fixel::RootMood::Negative) => im::Rgba([240,255,255,255]),
-            fixel::RootType::Root => im::Rgba([0,0,0,255]),
+            fixel::RootType::NoRoot => {
+                match self.fixels[(x as usize, y as usize)].mood {
+                    fixel::Mood::Positive => im::Rgba([255,255,240,255]),
+                    fixel::Mood::Negative => im::Rgba([240,255,255,255]),
+                    fixel::Mood::NoData => im::Rgba([255,255,255,255])
+                }
+            }
+            fixel::RootType::Root => im::Rgba([180,180,180,255]),
             fixel::RootType::OutOfDomain => im::Rgba([255,0,0,255])
         }
     }
@@ -63,10 +67,10 @@ impl DrawingApp for Equart{
             return;
         }
         self.min_achived_depth += 1; // Issue with resizes, too much roots at once
-        let mut y_neighbors: Vec<fixel::RootType> = Vec::with_capacity(self.fixels.column_len());
-        let mut x_neighbor = fixel::RootType::NoRoot(fixel::RootMood::NoData);
+        let mut y_neighbors: Vec<fixel::Mood> = Vec::with_capacity(self.fixels.column_len());
+        let mut x_neighbor = fixel::Mood::NoData;
         for _ in 0..self.fixels.column_len(){
-            y_neighbors.push(fixel::RootType::NoRoot(fixel::RootMood::NoData));
+            y_neighbors.push(fixel::Mood::NoData);
         };
         for y in 0..self.fixels.row_len(){
             for x in 0..self.fixels.column_len(){
