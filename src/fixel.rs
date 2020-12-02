@@ -51,8 +51,10 @@ pub struct Fixel {
     pub out_of_domain: Vec<Point>,
     pub roots: RootType,
     pub mood: Mood,
-    pub x_neighbor: Mood,
-    pub y_neighbor: Mood,
+    pub x_pre_neighbor: Mood,
+    pub x_post_neighbor: Mood,
+    pub y_pre_neighbor: Mood,
+    pub y_post_neighbor: Mood,
     pub probes: u32
 }
 
@@ -65,8 +67,10 @@ impl Fixel {
             out_of_domain: Vec::new(),
             roots: RootType::NoRoot,
             mood: Mood::NoData,
-            x_neighbor: Mood::NoData, 
-            y_neighbor: Mood::NoData,
+            x_pre_neighbor: Mood::NoData,
+            x_post_neighbor: Mood::NoData,
+            y_pre_neighbor: Mood::NoData,
+            y_post_neighbor: Mood::NoData,
             probes: 0
         }
     }
@@ -104,17 +108,13 @@ impl Fixel {
         }
         if self.negative.len() > 0 {
             self.mood = Mood::Negative;
-            if self.x_neighbor == Mood::Positive || self.y_neighbor == Mood::Positive {
-                self.roots = RootType::Root;
-                return self.mood;
-            }
+            self.roots = RootType::NoRoot;
+            return self.mood;
         }
         if self.positive.len() > 0 {
             self.mood = Mood::Positive;
-            if self.x_neighbor == Mood::Negative || self.y_neighbor == Mood::Negative {
-                self.roots = RootType::Root;
-                return self.mood;
-            }
+            self.roots = RootType::NoRoot;
+            return self.mood;
         }
         self.roots = RootType::NoRoot;
         return self.mood;
@@ -138,11 +138,9 @@ impl Fixel {
 
     /// Automatically calculate if new probes are needed, and calculate position
     /// of a new probes.
-    pub fn add_samples<F>(&mut self,rel: F, start: &Point, end: &Point, expected_probes: u32, x_neighbor: Mood, y_neighbor: Mood) -> Mood
+    pub fn add_samples<F>(&mut self,rel: F, start: &Point, end: &Point, expected_probes: u32) -> Mood
         where F: Fn(f64, f64) -> f64
     {
-        self.x_neighbor = x_neighbor;
-        self.y_neighbor = y_neighbor;
         if self.probes >= expected_probes {
             return self.mood;
         }
@@ -268,15 +266,15 @@ mod fixel_tests {
     #[test]
     fn add_samples_trivial() {
         let mut f = Fixel::new();
-        assert_eq!(f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 2, Mood::NoData, Mood::NoData), 2);
+        assert_eq!(f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 2), 2);
         assert_eq!(f.probes, 2);
     }
 
     #[test]
     fn add_samples_next() {
         let mut f = Fixel::new();
-        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 4, Mood::NoData, Mood::NoData);
-        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 13, Mood::NoData, Mood::NoData);
+        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 4);
+        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 13);
         assert_eq!(f.probes, 13);
     }
 
@@ -285,7 +283,7 @@ mod fixel_tests {
         let mut points: Vec<Point> = Vec::new();
         let mut f = Fixel::new();
         for x in 2..15{
-            f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), x, Mood::NoData, Mood::NoData);
+            f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), x);
         }
         for probe in f.exact_roots.iter().chain(
             f.positive.iter().chain(
@@ -305,7 +303,7 @@ mod fixel_tests {
         let mut f = Fixel::new();
         let start = Point(-1.0, -1.0);
         let end = Point(1.0, 1.0);
-        f.add_samples(|_, __| {0.0}, &start, &end, 13, Mood::NoData, Mood::NoData);
+        f.add_samples(|_, __| {0.0}, &start, &end, 13);
         for probe in f.exact_roots.iter().chain(
             f.positive.iter().chain(
                 f.negative.iter().chain(

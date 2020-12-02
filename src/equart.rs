@@ -57,7 +57,7 @@ impl DrawingApp for Equart{
                     fixel::Mood::NoData => im::Rgba([255,255,255,255])
                 }
             }
-            fixel::RootType::Root => im::Rgba([180,180,180,255]),
+            fixel::RootType::Root => im::Rgba([0,0, 0,255]),
             fixel::RootType::OutOfDomain => im::Rgba([255,0,0,255])
         }
     }
@@ -67,22 +67,17 @@ impl DrawingApp for Equart{
             return;
         }
         self.min_achived_depth += 1; // Issue with resizes, too much roots at once
-        let mut y_neighbors: Vec<fixel::Mood> = Vec::with_capacity(self.fixels.column_len());
-        let mut x_neighbor = fixel::Mood::NoData;
-        for _ in 0..self.fixels.column_len(){
-            y_neighbors.push(fixel::Mood::NoData);
-        };
         for y in 0..self.fixels.row_len(){
             for x in 0..self.fixels.column_len(){
                 let (start, end) = self.pixel2fixel(x, y);
-                let root_type = self.fixels[(x, y)].add_samples(
+                let mood = self.fixels[(x, y)].add_samples(
                     equart,
                     &start, &end,
-                    self.min_achived_depth,
-                    x_neighbor, y_neighbors[y]
+                    self.min_achived_depth
                 );
-                y_neighbors[y] = root_type;
-                x_neighbor = root_type;
+                if mood == fixel::Mood::Negative || mood == fixel::Mood::Positive {
+                    // update neighbors
+                }
             }
         }
 
@@ -90,6 +85,7 @@ impl DrawingApp for Equart{
 }
 
 impl Equart{
+    
     /// Convert pixel coordinates to fixel window
     fn pixel2fixel(&self, x: usize, y: usize) -> (fixel::Point, fixel::Point){
         let fixel_start_x = self.window_start.0 + self.fixel_size_x * x as f64;

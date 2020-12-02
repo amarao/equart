@@ -6,8 +6,8 @@ mod fixel;
 use threads::App;
 use piston::{Event, Loop};
 
-const DEFAULT_X: u32 = 512;
-const DEFAULT_Y: u32 = 512;
+const DEFAULT_X: u32 = 100;
+const DEFAULT_Y: u32 = 100;
 
 
 fn main() {
