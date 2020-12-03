@@ -76,6 +76,7 @@ impl Fixel {
         F: FnOnce(f64, f64)->f64
     {
         match rel(point.0, point.1) {
+            value if value.is_infinite() => self.out_of_domain.push(point),
             value if value < 0.0 => self.negative.push(point),
             value if value == 0.0 => self.exact_roots.push(point),
             value if value > 0.0 => self.positive.push(point),
