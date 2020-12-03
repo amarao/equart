@@ -2,13 +2,16 @@ use crate::fixel;
 use crate::threads;
 use threads::DrawingApp;
 use image as im;
-const WINDOW_X_START: f64 = -1.0;
-const WINDOW_X_END: f64 = 1.0;
-const WINDOW_Y_START: f64 = -1.0;
-const WINDOW_Y_END: f64 = 1.0;
+const WINDOW_X_START: f64 = -6.0;
+const WINDOW_X_END: f64 = 6.0;
+const WINDOW_Y_START: f64 = -6.0;
+const WINDOW_Y_END: f64 = 6.0;
 
 fn equart(x: f64, y:f64) -> f64{
-    x*x + y*y - 0.5
+    // x*x/y + y*y/x - 0.5
+    // x.tan() - y 
+    // x/1000.0 - y
+    x/y - x*y - y + x
 }
 
 
@@ -49,16 +52,21 @@ impl DrawingApp for Equart{
     }
 
     fn get_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
+        const ROOT: im::Rgba<u8> = im::Rgba([0,0, 0,255]);
+        const NOROOT: im::Rgba<u8> = im::Rgba([255,255,255,255]);
+        const POSITIVE: im::Rgba<u8> = im::Rgba([255,255,200,255]);
+        const NEGATIVE: im::Rgba<u8> = im::Rgba([200,255,255,255]);
+        const OOD: im::Rgba<u8> = im::Rgba([255,0,0,255]);
         match self.fixels[(x as usize, y as usize)].root_type() {
             fixel::RootType::NoRoot => {
                 match self.fixels[(x as usize, y as usize)].mood {
-                    fixel::Mood::Positive => im::Rgba([255,255,240,255]),
-                    fixel::Mood::Negative => im::Rgba([240,255,255,255]),
-                    fixel::Mood::NoData => im::Rgba([255,255,255,255])
+                    fixel::Mood::NoData => NOROOT,
+                    fixel::Mood::Positive => POSITIVE,
+                    fixel::Mood::Negative => NEGATIVE,
                 }
             }
-            fixel::RootType::Root => im::Rgba([0,0, 0,255]),
-            fixel::RootType::OutOfDomain => im::Rgba([255,0,0,255])
+            fixel::RootType::Root => ROOT,
+            fixel::RootType::OutOfDomain => OOD
         }
     }
     fn next_line(&mut self, _y: u32){}
@@ -70,14 +78,11 @@ impl DrawingApp for Equart{
         for y in 0..self.fixels.row_len(){
             for x in 0..self.fixels.column_len(){
                 let (start, end) = self.pixel2fixel(x, y);
-                let mood = self.fixels[(x, y)].add_samples(
+                self.fixels[(x, y)].add_samples(
                     equart,
                     &start, &end,
                     self.min_achived_depth
                 );
-                if mood == fixel::Mood::Negative || mood == fixel::Mood::Positive {
-                    // update neighbors
-                }
             }
         }
 
