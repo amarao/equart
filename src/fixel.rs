@@ -29,17 +29,17 @@ impl Point {
     }
 }
 
-pub enum ProbeType{
-    ExactRoot,
-    Positive,
-    Negative,
-    OutOfDomain
-}
+// pub enum ProbeType{
+//     ExactRoot,
+//     Positive,
+//     Negative,
+//     OutOfDomain
+// }
 
 pub struct Probe{
     x: f64,
     y: f64,
-    probe_type: ProbeType
+    // probe_type: ProbeType
 }
 
 impl Probe {
@@ -69,12 +69,26 @@ impl Probe {
         }else{
             second = None
         }
-        return (first, second);
+        (first, second)
     }
+
+    /// Put pair into vec if pair is valid (both are not None)
+    fn combine(buf: &mut Vec<[usize;2]>, x:Option<usize>, y:Option<usize>){
+        match (x, y){
+            (Some(x), Some(y)) => buf.push([x, y]),
+            _ => {}
+        }
+    }
+    
     /// return list of locations for probe, yielding one or more new fixel coordinates
     fn gen_locations(&self, start: Point, end: Point, step_x: f64, step_y: f64) -> Vec<[usize;2]> {
-        let retval:Vec<[usize;2]> = Vec::new();
-        let main_point_x = start.0;
+        let mut retval:Vec<[usize;2]> = Vec::new();
+        let x_poses = Self::coord2pos(self.x, start.0, end.0, step_x);
+        let y_poses = Self::coord2pos(self.y, start.1, end.1, step_y);
+        Self::combine(&mut retval, x_poses.0, y_poses.0);
+        Self::combine(&mut retval, x_poses.0, y_poses.1);
+        Self::combine(&mut retval, x_poses.1, y_poses.0);
+        Self::combine(&mut retval, x_poses.1, y_poses.1);
         retval
     }
 }
@@ -394,5 +408,18 @@ mod probe_tests {
     #[should_panic]
     fn coord2pos_panic_over(){
         Probe::coord2pos(1.1, -1.0, 1.0, 1.0);
+    }
+
+    #[test]
+    fn gen_locations_simple(){
+        let p = Probe{x:0.5, y:0.5};
+        assert_eq!(
+            p.gen_locations(
+                Point(-1.0, -1.0),
+                Point(1.0, 1.0),
+                1.0, 1.0
+            ),
+            vec![[1, 1]]
+        )
     }
 }
