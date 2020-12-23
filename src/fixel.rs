@@ -1,3 +1,5 @@
+// use Array2d;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 /// Describe type of root absence
 pub enum Mood{
@@ -13,9 +15,9 @@ pub enum RootType{
     OutOfDomain
 }
 
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point(pub f64, pub f64);
-
 
 /// Return true if point is within a given window
 impl Point {
@@ -24,6 +26,56 @@ impl Point {
         self.0 <= end.0 &&
         self.1 >= start.1 &&
         self.1 <= end.1 
+    }
+}
+
+pub enum ProbeType{
+    ExactRoot,
+    Positive,
+    Negative,
+    OutOfDomain
+}
+
+pub struct Probe{
+    x: f64,
+    y: f64,
+    probe_type: ProbeType
+}
+
+impl Probe {
+    /// Convert real coordinate to pixelated (fixel coordinate)
+    fn coord2pos(coord: f64, window_start: f64, window_end: f64, step:f64) -> (Option<usize>, Option<usize>) {
+        if coord < window_start || coord > window_end {
+            panic!("Coordinate is outside window")
+        }
+        let non_rounded_pos = (coord - window_start) / step;
+        let rounded_pos = non_rounded_pos.trunc();
+        let u_pos = rounded_pos as usize;
+        let first: Option<usize>;
+        let second: Option<usize>;
+        if (coord - window_end).abs() <= f64::EPSILON{
+            first = None
+        }
+        else{
+            first = Some(u_pos)
+        }
+        if (non_rounded_pos - rounded_pos).abs() <= f64::EPSILON {
+            if u_pos > 0 {
+                second = Some(u_pos - 1);
+            }
+            else{
+                second = None
+            }
+        }else{
+            second = None
+        }
+        return (first, second);
+    }
+    /// return list of locations for probe, yielding one or more new fixel coordinates
+    fn gen_locations(&self, start: Point, end: Point, step_x: f64, step_y: f64) -> Vec<[usize;2]> {
+        let retval:Vec<[usize;2]> = Vec::new();
+        let main_point_x = start.0;
+        retval
     }
 }
 
@@ -86,7 +138,7 @@ impl Fixel {
         self.probes += 1;
     }
 
-    fn search_roots(&mut self) -> RootType {
+    pub fn search_roots(&mut self) -> RootType {
         if self.out_of_domain.len() > 0 {
             self.roots = RootType::OutOfDomain;
             self.mood = Mood::NoData;
@@ -282,56 +334,65 @@ mod fixel_tests {
         assert_eq! (f.root_type(), RootType::OutOfDomain);
     }
 
-    #[test]
-    fn add_samples_trivial() {
-        let mut f = Fixel::new();
-        assert_eq!(f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 2), 2);
-        assert_eq!(f.probes, 2);
-    }
-
-    #[test]
-    fn add_samples_next() {
-        let mut f = Fixel::new();
-        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 4);
-        f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), 13);
-        assert_eq!(f.probes, 13);
-    }
-
-    #[test]
-    fn add_samples_uniqueness() {
-        let mut points: Vec<Point> = Vec::new();
-        let mut f = Fixel::new();
-        for x in 2..15{
-            f.add_samples(|_, __| {0.0}, &Point(-1.0, -1.0), &Point(1.0, 1.0), x);
-        }
-        for probe in f.exact_roots.iter().chain(
-            f.positive.iter().chain(
-                f.negative.iter().chain(
-                    f.out_of_domain.iter()
-                )
-            )
-        ){
-            println!("{:?}", probe);
-            assert!(!points.contains(probe));
-            points.push(*probe);
-        }
-    }
-
-    #[test]
-    fn add_samples_are_in_range() {
-        let mut f = Fixel::new();
-        let start = Point(-1.0, -1.0);
-        let end = Point(1.0, 1.0);
-        f.add_samples(|_, __| {0.0}, &start, &end, 13);
-        for probe in f.exact_roots.iter().chain(
-            f.positive.iter().chain(
-                f.negative.iter().chain(
-                    f.out_of_domain.iter()
-                )
-            )
-        ){
-            assert!(probe.in_window(&start, &end));
-        }
-    }
 }
 
+
+#[cfg(test)]
+mod probe_tests {
+    use super::*;
+
+    #[test]
+    fn coord2pos_normal_1(){
+        assert_eq!(
+            Probe::coord2pos(0.5, -1.0, 1.0, 1.0),
+            (Some(1), None)
+        )
+    }
+
+    #[test]
+    fn coord2pos_normal_2(){
+        assert_eq!(
+            Probe::coord2pos(-0.5, -1.0, 1.0, 1.0),
+            (Some(0), None)
+        )
+    }
+
+    /// Avoid -1 in position
+    #[test]
+    fn coord2pos_case1(){
+        assert_eq!(
+            Probe::coord2pos(-1.0, -1.0, 1.0, 1.0),
+            (Some(0), None)
+        )
+    }
+
+    /// Avoid overflow for last pixel
+    #[test]
+    fn coord2pos_case2(){
+        assert_eq!(
+            Probe::coord2pos(1.0, -1.0, 1.0, 1.0),
+            (None, Some(1))
+        )
+    }
+
+    /// Get both positions for edge coordinates
+    #[test]
+    fn coord2pos_case3(){
+        assert_eq!(
+            Probe::coord2pos(0.0, -1.0, 1.0, 1.0),
+            (Some(1), Some(0))
+        )
+    }
+    
+    #[test]
+    #[should_panic]
+    fn coord2pos_panic_under(){
+        Probe::coord2pos(-1.1, -1.0, 1.0, 1.0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn coord2pos_panic_over(){
+        Probe::coord2pos(1.1, -1.0, 1.0, 1.0);
+    }
+}
