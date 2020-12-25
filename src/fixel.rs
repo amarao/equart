@@ -29,17 +29,17 @@ impl Point {
     }
 }
 
-// pub enum ProbeType{
-//     ExactRoot,
-//     Positive,
-//     Negative,
-//     OutOfDomain
-// }
+pub enum ProbeType{
+    ExactRoot,
+    Positive,
+    Negative,
+    OutOfDomain
+}
 
 pub struct Probe{
     x: f64,
     y: f64,
-    // probe_type: ProbeType
+    probe_type: ProbeType
 }
 
 impl Probe {
@@ -74,14 +74,13 @@ impl Probe {
 
     /// Put pair into vec if pair is valid (both are not None)
     fn combine(buf: &mut Vec<[usize;2]>, x:Option<usize>, y:Option<usize>){
-        match (x, y){
-            (Some(x), Some(y)) => buf.push([x, y]),
-            _ => {}
+        if let (Some(x), Some(y)) = (x, y){
+            buf.push([x, y])
         }
     }
     
     /// return list of locations for probe, yielding one or more new fixel coordinates
-    fn gen_locations(&self, start: Point, end: Point, step_x: f64, step_y: f64) -> Vec<[usize;2]> {
+    pub fn gen_locations(&self, start: Point, end: Point, step_x: f64, step_y: f64) -> Vec<[usize;2]> {
         let mut retval:Vec<[usize;2]> = Vec::new();
         let x_poses = Self::coord2pos(self.x, start.0, end.0, step_x);
         let y_poses = Self::coord2pos(self.y, start.1, end.1, step_y);
@@ -111,12 +110,12 @@ impl Probe {
 /// probes is cached value of total number of points in all four categories.
 #[derive(Debug,Clone)]
 pub struct Fixel {
-    pub exact_roots: Vec<Point>,
-    pub negative: Vec<Point>,
-    pub positive: Vec<Point>,
-    pub out_of_domain: Vec<Point>,
-    pub roots: RootType,
-    pub probes: u32,
+    exact_roots: Vec<Point>,
+    negative: Vec<Point>,
+    positive: Vec<Point>,
+    out_of_domain: Vec<Point>,
+    roots: RootType,
+    probes: u32,
     pub mood: Mood,
 }
 
@@ -255,6 +254,41 @@ impl Fixel {
     }
 }
 
+impl<'a> IntoIterator for &'a Fixel{
+    type Item = Probe;
+    type IntoIter = FixelIter<'a>;
+    fn  into_iter(self) -> Self::IntoIter {
+        FixelIter{
+            fixel: self,
+            current_queue:RootType::Root,
+            idx: 0
+        }
+    }
+}
+
+pub struct FixelIter<'a>{
+    fixel: &'a Fixel,
+    current_queue: RootType,
+    idx: usize
+}
+impl<'a> Iterator for FixelIter<'a>{
+    type Item = Probe;
+    fn next(&mut self) -> Option<Self::Item>{
+        match self.current_queue{
+            RootType::Root => {
+
+                None
+            },
+            RootType::NoRoot => {
+                None
+            },
+            RootType::OutOfDomain => {
+                None
+            }
+        }
+    }
+}
+
 mod point_tests {
     use super::*;
 
@@ -298,7 +332,7 @@ mod fixel_tests {
     #[test]
     fn fixel_zero() {
         let mut f = Fixel::new();
-        f.add_probe(Point(0.0, 0.0), |_, __| {1.0 - 1.0});
+        f.add_probe(Point(0.0, 0.0), |_, __| {0.0});
         f.add_probe(Point(0.0, 0.0), |_, __| {-1.0 + -1.0});
         assert_eq! (f.root_type(), RootType::NoRoot);
         f.search_roots();
@@ -412,7 +446,7 @@ mod probe_tests {
 
     #[test]
     fn gen_locations_simple(){
-        let p = Probe{x:0.5, y:0.5};
+        let p = Probe{x:0.5, y:0.5, probe_type: ProbeType::ExactRoot};
         assert_eq!(
             p.gen_locations(
                 Point(-1.0, -1.0),
@@ -420,6 +454,30 @@ mod probe_tests {
                 1.0, 1.0
             ),
             vec![[1, 1]]
+        )
+    }
+    #[test]
+    fn gen_locations_worst_corner(){
+        let p = Probe{x:1.0, y:1.0, probe_type: ProbeType::ExactRoot};
+        assert_eq!(
+            p.gen_locations(
+                Point(-1.0, -1.0),
+                Point(1.0, 1.0),
+                1.0, 1.0
+            ),
+            vec![[1, 1]]
+        )
+    }
+    #[test]
+    fn gen_locations_mid_corner(){
+        let p = Probe{x:0.0, y:0.0, probe_type: ProbeType::ExactRoot};
+        assert_eq!(
+            p.gen_locations(
+                Point(-1.0, -1.0),
+                Point(1.0, 1.0),
+                1.0, 1.0
+            ),
+            vec![[1, 1], [1, 0], [0, 1], [0, 0]]
         )
     }
 }

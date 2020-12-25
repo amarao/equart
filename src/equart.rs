@@ -11,7 +11,7 @@ fn equart(x: f64, y:f64) -> f64{
     // x*x/y + y*y/x - 0.5
     // x.tan() - y 
     // x/1000.0 - y
-    x/y - x*y - y + x
+    x/y/x.sin() - x*y/x.sin() - y*x.sin() + x*y.sin()
 }
 
 
@@ -44,11 +44,29 @@ impl DrawingApp for Equart{
     }
 
     fn resize(&mut self, x: u32, y: u32){
-        // FIXME TODO
-        self.fixels = array2d::Array2D::filled_with(fixel::Fixel::new(), x as usize, y as usize);
-        self.fixel_size_x = (WINDOW_X_END - WINDOW_X_START)/x as f64;
-        self.fixel_size_y = (self.window_end.1 - self.window_start.1)/y as f64;
-        self.min_achived_depth = 4;
+        let mut new = array2d::Array2D::filled_with(fixel::Fixel::new(), x as usize, y as usize);
+        let new_fixel_size_x = (self.window_end.0 - self.window_start.0)/x as f64;
+        let new_fixel_size_y = (self.window_end.1 - self.window_start.1)/y as f64;
+        for y in 0..self.fixels.row_len(){
+            for x in 0..self.fixels.column_len(){
+                let fixel = self.fixels.get(x, y).unwrap();
+                for probe in fixel{
+                    for p in probe.gen_locations(self.window_start, self.window_end, new_fixel_size_x, new_fixel_size_y){
+                    //    self.fixels.get_mut(p.0, p.1).append_probe(probe)
+                   }
+                }
+            }
+        }
+        for y in 0..new.row_len(){
+            for x in 0..new.column_len(){
+                new.get_mut(x, y).unwrap().search_roots();
+            }
+        }
+        self.fixels = new;
+        self.fixel_size_x = new_fixel_size_x;
+        self.fixel_size_y = new_fixel_size_y;
+
+        
     }
 
     fn get_pixel(&mut self, x: u32, y: u32) -> im::Rgba<u8> {
@@ -97,15 +115,17 @@ impl Equart{
         let fixel_start_y = self.window_start.1 + self.fixel_size_y * y as f64;
         let fixel_end_x = fixel_start_x + self.fixel_size_x;
         let fixel_end_y = fixel_start_y + self.fixel_size_y;
-        return (
+        (
             fixel::Point(fixel_start_x, fixel_start_y),
             fixel::Point(fixel_end_x, fixel_end_y)
-        );
+        )
     }
+
     fn slice(start: f64, end: f64, id: usize, max_id: usize) -> (f64, f64){
         let span = (end - start)/max_id as f64;
         let begin =  start + span * id as f64;
         let end = begin + span;
         (begin, end)
-    }       
+    }
+
 }

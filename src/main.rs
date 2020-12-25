@@ -11,8 +11,8 @@ const DEFAULT_Y: u32 = 1000;
 
 
 fn main() {
-    let cpus = num_cpus::get();
-    // let cpus = 3;
+    // let cpus = num_cpus::get();
+    let cpus = 1;
     let mut app: App = App::new::<equart::Equart>("equart", cpus, DEFAULT_X, DEFAULT_Y);
 
     while let Some(e) = app.next_event() {
