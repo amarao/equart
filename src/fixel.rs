@@ -29,6 +29,7 @@ impl Point {
     }
 }
 
+#[derive(Copy,Clone,Debug)]
 pub enum ProbeType{
     ExactRoot,
     Positive,
@@ -36,6 +37,7 @@ pub enum ProbeType{
     OutOfDomain
 }
 
+#[derive(Copy,Clone,Debug)]
 pub struct Probe{
     x: f64,
     y: f64,
@@ -252,6 +254,10 @@ impl Fixel {
         }
         panic!("No place found for {} dots in a fixel from {}x{} to {}x{} ", need_to_place, start.0, start.1, end.0, end.1);
     }
+
+    pub fn transfer_probe(&mut self, probe: Probe){
+        
+    }
 }
 
 impl<'a> IntoIterator for &'a Fixel{
@@ -260,7 +266,7 @@ impl<'a> IntoIterator for &'a Fixel{
     fn  into_iter(self) -> Self::IntoIter {
         FixelIter{
             fixel: self,
-            queue_type:RootType::Root,
+            queue_type:ProbeType::ExactRoot,
             idx: 0
         }
     }
@@ -268,7 +274,7 @@ impl<'a> IntoIterator for &'a Fixel{
 
 pub struct FixelIter<'a>{
     fixel: &'a Fixel,
-    queue_type: RootType,
+    queue_type: ProbeType,
     idx: usize
 }
 
@@ -277,15 +283,52 @@ impl<'a> Iterator for FixelIter<'a>{
     type Item = Probe;
     fn next(&mut self) -> Option<Self::Item>{
         match self.queue_type{
-            RootType::Root => {
-
-                None
+            ProbeType::ExactRoot => {
+                if let Some(root) = self.fixel.exact_roots.get(self.idx){
+                    Some(Probe {
+                        x: root.0,
+                        y: root.1,
+                        probe_type: ProbeType::ExactRoot
+                    })
+                }else{
+                    self.queue_type = ProbeType::Negative;
+                    self.next()
+                }
             },
-            RootType::NoRoot => {
-                None
+            ProbeType::Negative => {
+                if let Some(root) = self.fixel.negative.get(self.idx){
+                    Some(Probe {
+                        x: root.0,
+                        y: root.1,
+                        probe_type: ProbeType::Negative
+                    })
+                }else{
+                    self.queue_type = ProbeType::Positive;
+                    self.next()
+                }
             },
-            RootType::OutOfDomain => {
-                None
+            ProbeType::Positive => {
+                if let Some(root) = self.fixel.positive.get(self.idx){
+                    Some(Probe {
+                        x: root.0,
+                        y: root.1,
+                        probe_type: ProbeType::Positive
+                    })
+                }else{
+                    self.queue_type = ProbeType::OutOfDomain;
+                    self.next()
+                }
+            },
+            ProbeType::OutOfDomain => {
+                if let Some(root) = self.fixel.out_of_domain.get(self.idx){
+                    Some(Probe {
+                        x: root.0,
+                        y: root.1,
+                        probe_type: ProbeType::OutOfDomain
+                    })
+                }else{
+                    None
+                }
             }
         }
     }

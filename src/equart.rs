@@ -52,7 +52,7 @@ impl DrawingApp for Equart{
                 let fixel = self.fixels.get(x, y).unwrap();
                 for probe in fixel{
                     for p in probe.gen_locations(self.window_start, self.window_end, new_fixel_size_x, new_fixel_size_y){
-                    //    self.fixels.get_mut(p.0, p.1).append_probe(probe)
+                       new.get_mut(p[0], p[1]).unwrap().transfer_probe(probe)
                    }
                 }
             }
