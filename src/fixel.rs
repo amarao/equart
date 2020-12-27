@@ -260,7 +260,7 @@ impl<'a> IntoIterator for &'a Fixel{
     fn  into_iter(self) -> Self::IntoIter {
         FixelIter{
             fixel: self,
-            current_queue:RootType::Root,
+            queue_type:RootType::Root,
             idx: 0
         }
     }
@@ -268,13 +268,15 @@ impl<'a> IntoIterator for &'a Fixel{
 
 pub struct FixelIter<'a>{
     fixel: &'a Fixel,
-    current_queue: RootType,
+    queue_type: RootType,
     idx: usize
 }
+
+/// Return all probes in annotated manner
 impl<'a> Iterator for FixelIter<'a>{
     type Item = Probe;
     fn next(&mut self) -> Option<Self::Item>{
-        match self.current_queue{
+        match self.queue_type{
             RootType::Root => {
 
                 None
