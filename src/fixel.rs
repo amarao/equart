@@ -256,7 +256,20 @@ impl Fixel {
     }
 
     pub fn transfer_probe(&mut self, probe: Probe){
-        
+        match probe.probe_type{
+            ProbeType::ExactRoot => {
+                self.exact_roots.push(Point(probe.x, probe.y))
+            },
+            ProbeType::Negative => {
+                self.negative.push(Point(probe.x, probe.y))
+            },
+            ProbeType::Positive => {
+                self.positive.push(Point(probe.x, probe.y))
+            },
+            ProbeType::OutOfDomain => {
+                self.out_of_domain.push(Point(probe.x, probe.y))
+            },
+        }
     }
 }
 
