@@ -127,7 +127,9 @@ impl PerThread {
             Ok(buf) =>{
                 self.buf=buf;
             }
-            Err(TryRecvError::Empty) => {println!("update missed.");}
+            Err(TryRecvError::Empty) => {
+                // println!("update missed.");
+            }
             Err(TryRecvError::Disconnected) => {
                 println!("Thread terminated!");
                 return Err(());
@@ -137,7 +139,7 @@ impl PerThread {
     }
     fn request_update(&self){
         if let Err(err) =self.control_tx.try_send(Command::NeedUpdate()){
-            println!("update request errorr: {}", err);
+            // println!("update request errorr: {}", err);
         }
     }
 

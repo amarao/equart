@@ -43,20 +43,38 @@ impl DrawingApp for Equart{
         }
     }
 
-    fn resize(&mut self, x: u32, y: u32){
-        let mut new = array2d::Array2D::filled_with(fixel::Fixel::new(), x as usize, y as usize);
-        let new_fixel_size_x = (self.window_end.0 - self.window_start.0)/x as f64;
-        let new_fixel_size_y = (self.window_end.1 - self.window_start.1)/y as f64;
+    fn resize(&mut self, new_x: u32, new_y: u32){
+        println!("redistributing fixels...");
+        let mut cnt=0;
+        let mut err=0;
+        let mut fcnt = 0;
+        let mut pcnt = 0;
+        let mut new = array2d::Array2D::filled_with(fixel::Fixel::new(), new_x as usize, new_y as usize);
+        let new_fixel_size_x = (self.window_end.0 - self.window_start.0)/new_x as f64;
+        let new_fixel_size_y = (self.window_end.1 - self.window_start.1)/new_y as f64;
         for y in 0..self.fixels.row_len(){
+            // println!("line y: {}, redistributed probes: {}, processed fixels: {}, oob err: {}", y, cnt, fcnt, err);
             for x in 0..self.fixels.column_len(){
                 let fixel = self.fixels.get(x, y).unwrap();
+                fcnt +=1;
                 for probe in fixel{
-                    for p in probe.gen_locations(self.window_start, self.window_end, new_fixel_size_x, new_fixel_size_y){
-                       new.get_mut(p[0], p[1]).unwrap().transfer_probe(probe)
+                    pcnt += 1;
+                    let new_locations = probe.gen_locations(self.window_start, self.window_end, new_fixel_size_x, new_fixel_size_y);
+                    for p in new_locations{
+                        if let Some(new_fixel) = new.get_mut(p[0], p[1]){
+                            new_fixel.transfer_probe(probe);
+                            cnt +=1;
+                        }else{
+                            err +=1;
+                            // println!("out of bound access");
+                            // println!("old fixel {}x{}, window: {:?}x{:?} fixel_size:{}x{}", x, y, self.window_start, self.window_end, new_fixel_size_x, new_fixel_size_y);
+                            // println!("new fixel: [{}x{}] access to {}x{}", new_x, new_y,  p[0], p[1]);
+                        }
                    }
                 }
             }
         }
+        println!("Done! redistributed probes: {}, processed fixels: {}, probes: {}, oob err: {}", cnt, fcnt, pcnt, err);
         for y in 0..new.row_len(){
             for x in 0..new.column_len(){
                 new.get_mut(x, y).unwrap().search_roots();

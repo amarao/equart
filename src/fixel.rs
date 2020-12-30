@@ -48,7 +48,7 @@ impl Probe {
     /// Convert real coordinate to pixelated (fixel coordinate)
     fn coord2pos(coord: f64, window_start: f64, window_end: f64, step:f64) -> (Option<usize>, Option<usize>) {
         if coord < window_start || coord > window_end {
-            panic!("Coordinate is outside window")
+            panic!("Coordinate is outside window!, coord: {}, window_start: {}, window_end: {}, step:{}", coord, window_start, window_end, step);
         }
         let non_rounded_pos = (coord - window_start) / step;
         let rounded_pos = non_rounded_pos.trunc();
@@ -59,6 +59,9 @@ impl Probe {
             first = None
         }
         else{
+            if (window_start + u_pos as f64 * step) >= window_end{
+                println!("!");
+            }
             first = Some(u_pos)
         }
         if (non_rounded_pos - rounded_pos).abs() <= f64::EPSILON {
@@ -252,7 +255,8 @@ impl Fixel {
                 }
             }
         }
-        panic!("No place found for {} dots in a fixel from {}x{} to {}x{} ", need_to_place, start.0, start.1, end.0, end.1);
+        println!("No place found for {} dots in a fixel from {}x{} to {}x{} ", need_to_place, start.0, start.1, end.0, end.1);
+        return self.search_roots();
     }
 
     pub fn transfer_probe(&mut self, probe: Probe){
@@ -298,6 +302,7 @@ impl<'a> Iterator for FixelIter<'a>{
         match self.queue_type{
             ProbeType::ExactRoot => {
                 if let Some(root) = self.fixel.exact_roots.get(self.idx){
+                    self.idx += 1;
                     Some(Probe {
                         x: root.0,
                         y: root.1,
@@ -310,6 +315,7 @@ impl<'a> Iterator for FixelIter<'a>{
             },
             ProbeType::Negative => {
                 if let Some(root) = self.fixel.negative.get(self.idx){
+                    self.idx += 1;
                     Some(Probe {
                         x: root.0,
                         y: root.1,
@@ -322,6 +328,7 @@ impl<'a> Iterator for FixelIter<'a>{
             },
             ProbeType::Positive => {
                 if let Some(root) = self.fixel.positive.get(self.idx){
+                    self.idx += 1;
                     Some(Probe {
                         x: root.0,
                         y: root.1,
@@ -334,6 +341,7 @@ impl<'a> Iterator for FixelIter<'a>{
             },
             ProbeType::OutOfDomain => {
                 if let Some(root) = self.fixel.out_of_domain.get(self.idx){
+                    self.idx += 1;
                     Some(Probe {
                         x: root.0,
                         y: root.1,
@@ -501,6 +509,13 @@ mod probe_tests {
     fn coord2pos_panic_over(){
         Probe::coord2pos(1.1, -1.0, 1.0, 1.0);
     }
+    #[test]
+    fn coord2pos_panic_case_4(){
+        assert_eq!(
+            Probe::coord2pos(-6.0, -6.0, 6.0, 1.0),
+            (Some(0), None)
+        )
+    }
 
     #[test]
     fn gen_locations_simple(){
@@ -538,4 +553,17 @@ mod probe_tests {
             vec![[1, 1], [1, 0], [0, 1], [0, 0]]
         )
     }
+    #[test]
+    fn gen_locations_case_1(){
+        let p = Probe{x:-6.0, y:-6.0, probe_type: ProbeType::Negative};
+        assert_eq!(
+            p.gen_locations(
+                Point(-6.0, -6.0),
+                Point(6.0, 6.0),
+                1.0, 1.0
+            ),
+            vec![[0, 0]]
+        )
+    }
+
 }
