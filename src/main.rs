@@ -5,6 +5,7 @@ mod fixel;
 
 use threads::App;
 use piston::{Event, Loop};
+mod quadtree;
 
 const DEFAULT_X: u32 = 128;
 const DEFAULT_Y: u32 = 128;
