@@ -1,5 +1,5 @@
 // const N: usize = 4;
-#[derive(Debug)]
+#[derive(Debug,Clone,Copy)]
 pub struct Point {
     x: f64,
     y: f64
@@ -10,7 +10,7 @@ impl Point {
         Point{x,y}
     }
 
-    pub fn x_in_range(&self, start: &Point, end: &Point) -> bool {
+    pub fn x_in_range(&self, start: Point, end: Point) -> bool {
         self.x >= start.x && self.x <= end.x && self.y >= start.y && self.y <= end.y
     }
 
@@ -41,8 +41,8 @@ impl Boundry {
         Self::new(Point::new(start_x, start_y), Point::new(end_x, end_y))
     }
 
-    pub fn is_inside(&self, p: &Point) -> bool {
-        p.x_in_range(&self.start, &self.end)
+    pub fn is_inside(&self, p: Point) -> bool {
+        p.x_in_range(self.start, self.end)
     }
 
     pub fn split(&self) -> [Self;4]{
@@ -63,21 +63,51 @@ impl PartialEq for Boundry{
     }
 }
 
-struct QuadTreeNode<T>{
-    data: Option<T>,
-    boundry: Boundry,
-    quadrants: [Option<Box<QuadTreeNode<T>>>;4]
+enum QuadTreeNode<T> {
+    Leaf(Point, T),
+    Node([Box<QuadTree<T>>; 4]),
+    None
 }
 
-impl<T> QuadTreeNode<T>{
+struct QuadTree<T>{
+    node: QuadTreeNode<T>,
+    boundry: Boundry,
+}
+
+impl<T> QuadTree<T>{
     fn new(b: Boundry) -> Self{
-        QuadTreeNode{
-            data:None,
+        QuadTree{
             boundry: b,
-            quadrants: [None,None,None,None]
+            node: QuadTreeNode::None
         }
     }
 
+    fn is_inside(&self, p: Point) -> bool{
+        self.boundry.is_inside(p)
+    }
+
+    fn append_point(&mut self, coords: Point, data: T) -> Result<(), &str>{
+        if !self.boundry.is_inside(coords){
+            return Err("Point outside of boundries");
+        }
+        match &mut self.node{
+            QuadTreeNode::None => {
+                // self.node = QuadTreeNode::Leaf(coords, data);
+                Ok(())
+            }
+            QuadTreeNode::Node(quadrants) => {
+                for quadrant in quadrants.iter_mut(){
+                    if quadrant.is_inside(coords){
+                        return quadrant.append_point(coords, data);
+                    }
+                }
+                Err("Point is not in any of quardrants")
+            }
+            _ => {
+                Err("")
+            }
+        }
+    }
 }
 
 #[cfg(test)]
