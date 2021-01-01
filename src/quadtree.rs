@@ -23,7 +23,7 @@ impl PartialEq for Point{
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Boundry{
     start: Point,
     end: Point
@@ -82,32 +82,86 @@ impl<T> QuadTree<T>{
         }
     }
 
+    // fn new_with_data(b: Boundry) -> Self{
+    //     QuadTree{
+    //         boundry: b,
+    //         node: QuadTreeNode::None
+    //     }
+    // }
+
     fn is_inside(&self, p: Point) -> bool{
         self.boundry.is_inside(p)
     }
 
-    fn append_point(&mut self, coords: Point, data: T) -> Result<(), &str>{
+    fn append_point(&mut self, coords: Point, data: T) -> Result<(), ()>{
         if !self.boundry.is_inside(coords){
-            return Err("Point outside of boundries");
+            return Err(());
         }
-        match &mut self.node{
+        let newnode = QuadTreeNode::None;
+        let oldnode = std::mem::replace(&mut self.node, newnode);
+        match oldnode {
             QuadTreeNode::None => {
-                // self.node = QuadTreeNode::Leaf(coords, data);
+                self.node = QuadTreeNode::Leaf(coords, data);
                 Ok(())
-            }
+            },
+            QuadTreeNode::Leaf(old_coords, old_data) => {
+                let subboundries = self.boundry.split();
+                let quadrants = [
+                    Box::new(QuadTree::new(subboundries[0])),
+                    Box::new(QuadTree::new(subboundries[1])),
+                    Box::new(QuadTree::new(subboundries[2])),
+                    Box::new(QuadTree::new(subboundries[3])),
+                ];
+                self.node = QuadTreeNode::Node(quadrants);
+                let res1 = self.append_point(coords, data);
+                let res2 = self.append_point(old_coords, old_data);
+                if res1 == Ok(()) && res2 == Ok(()){
+                    Ok(())
+                }else{
+                    Err(())
+                }
+            },
             QuadTreeNode::Node(quadrants) => {
-                for quadrant in quadrants.iter_mut(){
-                    if quadrant.is_inside(coords){
-                        return quadrant.append_point(coords, data);
+                self.node = QuadTreeNode::Node(quadrants);
+                if let QuadTreeNode::Node(ref mut qw) = & mut self.node{
+                    for q in qw.iter_mut(){
+                        if q.is_inside(coords){
+                            return q.append_point(coords, data);
+                        }
                     }
                 }
-                Err("Point is not in any of quardrants")
-            }
-            _ => {
-                Err("")
+                Err(())
             }
         }
     }
+    //     if let QuadTreeNode::None = &mut self.node {
+    //         self.node = QuadTreeNode::Leaf(coords, data);
+    //         return Ok(());
+    //     }
+
+    //         let quadrants = [
+    //             Box::new(QuadTree::new(subboundries[0])),
+    //             Box::new(QuadTree::new(subboundries[1])),
+    //             Box::new(QuadTree::new(subboundries[2])),
+    //             Box::new(QuadTree::new(subboundries[3])),
+    //         ];
+    //         self.node = QuadTreeNode::Node(quadrants);
+    //         let res1 = self.append_point(coords, data);
+    //         let res2 = self.append_point(old_coords, old_data);
+    //         return Ok(());
+    //     }
+
+
+    //     if let QuadTreeNode::Node(quadrants) = &mut self.node {
+    //         for quadrant in quadrants.iter_mut(){
+    //             if quadrant.is_inside(coords){
+    //                 return quadrant.append_point(coords, data);
+    //             }
+    //         }
+    //         return Err("Point is not in any of quardrants");
+    //     }
+    //     panic!("Impossible");
+    // }
 }
 
 #[cfg(test)]
