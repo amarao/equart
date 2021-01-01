@@ -105,6 +105,9 @@ impl<T> QuadTree<T>{
                 Ok(())
             },
             QuadTreeNode::Leaf(old_coords, old_data) => {
+                if old_coords == coords {
+                    return Ok(());
+                }
                 let subboundries = self.boundry.split();
                 let quadrants = [
                     Box::new(QuadTree::new(subboundries[0])),
@@ -134,34 +137,28 @@ impl<T> QuadTree<T>{
             }
         }
     }
-    //     if let QuadTreeNode::None = &mut self.node {
-    //         self.node = QuadTreeNode::Leaf(coords, data);
-    //         return Ok(());
-    //     }
 
-    //         let quadrants = [
-    //             Box::new(QuadTree::new(subboundries[0])),
-    //             Box::new(QuadTree::new(subboundries[1])),
-    //             Box::new(QuadTree::new(subboundries[2])),
-    //             Box::new(QuadTree::new(subboundries[3])),
-    //         ];
-    //         self.node = QuadTreeNode::Node(quadrants);
-    //         let res1 = self.append_point(coords, data);
-    //         let res2 = self.append_point(old_coords, old_data);
-    //         return Ok(());
-    //     }
-
-
-    //     if let QuadTreeNode::Node(quadrants) = &mut self.node {
-    //         for quadrant in quadrants.iter_mut(){
-    //             if quadrant.is_inside(coords){
-    //                 return quadrant.append_point(coords, data);
-    //             }
-    //         }
-    //         return Err("Point is not in any of quardrants");
-    //     }
-    //     panic!("Impossible");
-    // }
+    /// Search data py point
+    fn search(&self, p: Point) -> Option<&T>{
+        match &self.node{
+            QuadTreeNode::None => None,
+            QuadTreeNode::Leaf(coords, data) =>{
+                if *coords == p{
+                    Some(&data)
+                }else{None}
+            },
+            QuadTreeNode::Node(quadrants) => {
+                for q in quadrants.iter(){
+                    if q.is_inside(p){
+                        if let Some(data) = q.search(p){
+                            return Some(data)
+                        }
+                    }
+                }
+                None
+            }
+        }
+    }
 }
 
 #[cfg(test)]
