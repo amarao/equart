@@ -191,4 +191,37 @@ mod test_quadtree{
             Boundry::from_coords(1.0, 0.0, 2.0, 1.0)
         );
     }
+    #[test]
+    fn append_search_normal() {
+        let mut foo = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        let point = Point::new(0.0, 0.0);
+        assert_eq!(foo.append_point(point, 42), Ok(()));
+        assert_eq!(foo.search(point), Some(&42));
+    }
+    #[test]
+    fn append_oob() {
+        let mut foo = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        let point = Point::new(42.0, 42.0);
+        assert_eq!(foo.append_point(point, 42), Err(()));
+    }
+    #[test]
+    fn not_found() {
+        let mut foo = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        let point = Point::new(0.0, 0.0);
+        let other_point = Point::new(0.1, 0.1);
+        foo.append_point(point, 42).unwrap();
+        assert_eq!(foo.search(other_point), None);
+    }
+
+    #[test]
+    fn fill_quadrant() {
+        let mut foo = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        let mut point = Point::new(0.5, 0.5);
+        for cnt in 0..1024{
+            point.x /= 1.01;
+            point.y /= 1.01;
+            assert_eq!(foo.append_point(point, cnt), Ok(()));
+            assert_eq!(dbg!(foo.search(dbg!(point))), Some(&cnt));
+        }
+    }
 }
