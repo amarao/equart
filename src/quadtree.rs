@@ -10,7 +10,7 @@ impl Point {
         Point{x,y}
     }
 
-    pub fn x_in_range(&self, start: Point, end: Point) -> bool {
+    pub fn in_range(&self, start: Point, end: Point) -> bool {
         self.x >= start.x && self.x <= end.x && self.y >= start.y && self.y <= end.y
     }
 
@@ -42,7 +42,7 @@ impl Boundry {
     }
 
     pub fn is_inside(&self, p: Point) -> bool {
-        p.x_in_range(self.start, self.end)
+        p.in_range(self.start, self.end)
     }
 
     pub fn split(&self) -> [Self;4]{
@@ -55,6 +55,16 @@ impl Boundry {
             Self::from_coords(self.start.x + len_x, self.start.y + len_y, self.end.x, self.end.y),
         ]
     }
+
+    pub fn find_quadrant(&self, p: Point) -> (Self, usize){
+        let quadrants = self.split();
+        for i in 0..4{
+            if quadrants[i].is_inside(p){
+                return (quadrants[i], i)
+            }
+        }
+        panic!("point {:?} outside of boundries {:?}", p, self);
+    }
 }
 
 impl PartialEq for Boundry{
@@ -65,13 +75,13 @@ impl PartialEq for Boundry{
 
 enum QuadTreeNode<T> {
     Leaf(Point, T),
-    Node([Box<QuadTree<T>>; 4]),
+    Node([Option<Box<QuadTreeNode<T>>>; 4]),
     None
 }
 
 struct QuadTree<T>{
-    node: QuadTreeNode<T>,
     boundry: Boundry,
+    node: QuadTreeNode<T>,
 }
 
 impl<T> QuadTree<T>{
@@ -97,69 +107,84 @@ impl<T> QuadTree<T>{
         if !self.boundry.is_inside(coords){
             return Err(());
         }
-        let newnode = QuadTreeNode::None;
-        let oldnode = std::mem::replace(&mut self.node, newnode);
-        match oldnode {
+        self.node.append_point(self.boundry, coords, data);
+        Ok(())
+    }
+    /// Search data py point
+    fn search(&self, p: Point) -> Option<&T>{
+        if !self.boundry.is_inside(p){
+            return None;
+        }
+        self.node.search(self.boundry, p)
+    }
+}
+impl<T> QuadTreeNode<T>{
+    fn append_point(&mut self, boundry: Boundry, coords: Point, data: T) {
+        // let newnode = QuadTreeNode::None;
+        // let oldnode = std::mem::replace(&mut self.node, newnode);
+        let stub = QuadTreeNode::None;
+        let mut current = std::mem::replace(self, stub);
+        match current {
             QuadTreeNode::None => {
-                self.node = QuadTreeNode::Leaf(coords, data);
-                Ok(())
+                std::mem::replace(self, QuadTreeNode::Leaf(coords, data));
             },
             QuadTreeNode::Leaf(old_coords, old_data) => {
-                if old_coords == coords {
-                    return Ok(());
-                }
-                let subboundries = self.boundry.split();
-                let quadrants = [
-                    Box::new(QuadTree::new(subboundries[0])),
-                    Box::new(QuadTree::new(subboundries[1])),
-                    Box::new(QuadTree::new(subboundries[2])),
-                    Box::new(QuadTree::new(subboundries[3])),
-                ];
-                self.node = QuadTreeNode::Node(quadrants);
-                let res1 = self.append_point(coords, data);
-                let res2 = self.append_point(old_coords, old_data);
-                if res1 == Ok(()) && res2 == Ok(()){
-                    Ok(())
-                }else{
-                    Err(())
+                if old_coords != coords {
+                    let (subboundry, index) = boundry.find_quadrant(coords);
+                    let (old_subboundry, old_index) = boundry.find_quadrant(old_coords);
+                    let mut node = [None, None, None, None];
+                    let mut newnode = QuadTreeNode::Leaf(coords, data);
+                    if index == old_index {
+                        newnode.append_point(old_subboundry, old_coords, old_data);
+                    }else{
+                        let oldnode = QuadTreeNode::Leaf(old_coords, old_data);
+                        node[old_index] = Some(Box::new(oldnode));
+                    }
+                    node[index] =  Some(Box::new(newnode));
+                    std::mem::replace(self, QuadTreeNode::Node(node));
                 }
             },
-            QuadTreeNode::Node(quadrants) => {
-                self.node = QuadTreeNode::Node(quadrants);
-                if let QuadTreeNode::Node(ref mut qw) = & mut self.node{
-                    for q in qw.iter_mut(){
-                        if q.is_inside(coords){
-                            return q.append_point(coords, data);
-                        }
-                    }
+            QuadTreeNode::Node(ref mut quadrants) => {
+                let (subboundry, index) = boundry.find_quadrant(coords);
+                if quadrants[index].is_none(){
+                    quadrants[index] = Some(Box::new(QuadTreeNode::Leaf(coords, data)));
+                }else{
+                    let mut some_box_subnode = None;
+                    std::mem::swap(&mut quadrants[index], &mut some_box_subnode);
+                    let mut subnode = *(some_box_subnode.unwrap());
+                    subnode.append_point(subboundry, coords, data);
+                    quadrants[index] = Some(Box::new(subnode));
                 }
-                Err(())
+                std::mem::replace(self, current);
+
             }
         }
     }
-
-    /// Search data py point
-    fn search(&self, p: Point) -> Option<&T>{
-        match &self.node{
+    fn search(&self, b: Boundry, p: Point) -> Option<&T>{
+        match self{
             QuadTreeNode::None => None,
-            QuadTreeNode::Leaf(coords, data) =>{
+            QuadTreeNode::Leaf(coords, data) => {
                 if *coords == p{
                     Some(&data)
-                }else{None}
+                }
+                else {
+                    None
+                }
             },
             QuadTreeNode::Node(quadrants) => {
-                for q in quadrants.iter(){
-                    if q.is_inside(p){
-                        if let Some(data) = q.search(p){
-                            return Some(data)
-                        }
-                    }
+                let (subboundry, index) = b.find_quadrant(p);
+                if quadrants[index].is_none(){
+                    None
                 }
-                None
+                else{
+                    let unpacked = quadrants[index].as_ref().unwrap();
+                    unpacked.search(subboundry, p)
+                }
             }
         }
     }
 }
+            
 
 #[cfg(test)]
 mod test_quadtree{
@@ -221,7 +246,7 @@ mod test_quadtree{
             point.x /= 1.01;
             point.y /= 1.01;
             assert_eq!(foo.append_point(point, cnt), Ok(()));
-            assert_eq!(dbg!(foo.search(dbg!(point))), Some(&cnt));
+            assert_eq!(foo.search(point), Some(&cnt));
         }
     }
 }
