@@ -249,4 +249,15 @@ mod test_quadtree{
             assert_eq!(foo.search(point), Some(&cnt));
         }
     }
+
+    #[test]
+    fn good_fill() {
+        let mut q = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        for x in -1000..1000{
+            for y in -1000..1000{
+                let p = Point::new(x as f64/1000.0, y as f64/1000.0);
+                q.append_point(p, (x,y)).unwrap();
+            }
+        }
+    }
 }
