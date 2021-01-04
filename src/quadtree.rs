@@ -10,7 +10,7 @@ impl Point {
         Point{x,y}
     }
 
-    pub fn in_range(&self, start: Point, end: Point) -> bool {
+    pub fn in_area(&self, start: Point, end: Point) -> bool {
         self.x >= start.x && self.x <= end.x && self.y >= start.y && self.y <= end.y
     }
 
@@ -42,7 +42,7 @@ impl Boundry {
     }
 
     pub fn is_inside(&self, p: Point) -> bool {
-        p.in_range(self.start, self.end)
+        p.in_area(self.start, self.end)
     }
 
     pub fn split(&self) -> [Self;4]{
@@ -64,6 +64,14 @@ impl Boundry {
             }
         }
         panic!("point {:?} outside of boundries {:?}", p, self);
+    }
+
+    /// Return true if other overlaps with self.
+    pub fn overlaps(&self, other: Self) -> bool {
+        self.start.in_area(other.start, other.end) ||
+        self.end.in_area(other.start, other.end) ||
+        other.start.in_area(self.start, self.end) ||
+        other.end.in_area(self.start, self.end)
     }
 }
 
@@ -122,11 +130,10 @@ impl<T> QuadTreeNode<T>{
     fn append_point(&mut self, boundry: Boundry, coords: Point, data: T) {
         // let newnode = QuadTreeNode::None;
         // let oldnode = std::mem::replace(&mut self.node, newnode);
-        let stub = QuadTreeNode::None;
-        let mut current = std::mem::replace(self, stub);
+        let mut current = std::mem::replace(self, QuadTreeNode::None);
         match current {
             QuadTreeNode::None => {
-                std::mem::replace(self, QuadTreeNode::Leaf(coords, data));
+                *self = QuadTreeNode::Leaf(coords, data);
             },
             QuadTreeNode::Leaf(old_coords, old_data) => {
                 if old_coords != coords {
@@ -141,7 +148,7 @@ impl<T> QuadTreeNode<T>{
                         node[old_index] = Some(Box::new(oldnode));
                     }
                     node[index] =  Some(Box::new(newnode));
-                    std::mem::replace(self, QuadTreeNode::Node(node));
+                    *self = QuadTreeNode::Node(node);
                 }
             },
             QuadTreeNode::Node(ref mut quadrants) => {
@@ -155,8 +162,7 @@ impl<T> QuadTreeNode<T>{
                     subnode.append_point(subboundry, coords, data);
                     quadrants[index] = Some(Box::new(subnode));
                 }
-                std::mem::replace(self, current);
-
+                *self = current;
             }
         }
     }
@@ -182,6 +188,22 @@ impl<T> QuadTreeNode<T>{
                 }
             }
         }
+    }
+
+    fn values_in_area(&self, area: Boundry) -> Vec<&T>{
+        let mut found = Vec::new();
+        match self{
+            QuadTreeNode::None => {},
+            QuadTreeNode::Leaf(coords, data) => {
+                if area.is_inside(*coords){
+                    found.push(data);
+                }
+            }
+            QuadTreeNode::Node(quadrants) => {
+
+            }
+        }
+        found
     }
 }
             
@@ -216,6 +238,54 @@ mod test_quadtree{
             Boundry::from_coords(1.0, 0.0, 2.0, 1.0)
         );
     }
+
+    #[test]
+    fn overlaps_inside(){
+        let area_one = Boundry::from_coords(0.0, -50.0, 100.0, -10.0);
+        let area_two = Boundry::from_coords(1.0, -20.0, 2.0, -19.0);
+        assert!(area_one.overlaps(area_two));
+        assert!(area_two.overlaps(area_one));
+    }
+
+    #[test]
+    fn overlaps_matching(){
+        let area_one = Boundry::from_coords(0.0, -50.0, 100.0, -10.0);
+        assert!(area_one.overlaps(area_one));
+    }
+
+    #[test]
+    fn overlaps_partial(){
+        let area_one = Boundry::from_coords(0.0, 0.0, 2.0, 2.0);
+        let area_two = Boundry::from_coords(1.0, 1.0, 3.0, 3.0);
+        assert!(area_one.overlaps(area_two));
+        assert!(area_two.overlaps(area_one));
+    }
+
+    #[test]
+    fn overlaps_edge_1(){
+        let area_one = Boundry::from_coords(0.0, 0.0, 1.0, 1.0);
+        let area_two = Boundry::from_coords(1.0, 1.0, 3.0, 3.0);
+        assert!(area_one.overlaps(area_two));
+        assert!(area_two.overlaps(area_one));
+    }
+
+    #[test]
+    fn overlaps_edge_2(){
+        let area_one = Boundry::from_coords(0.0, 0.0, 1.0, 1.0);
+        let area_two = Boundry::from_coords(1.0, 0.0, 3.0, 3.0);
+        assert!(area_one.overlaps(area_two));
+        assert!(area_two.overlaps(area_one));
+    }
+
+    #[test]
+    fn overlaps_disjoint(){
+        let area_one = Boundry::from_coords(0.0, 0.0, 1.0, 1.0);
+        let area_two = Boundry::from_coords(2.0, 2.0, 3.0, 3.0);
+        assert!(!area_one.overlaps(area_two));
+        assert!(!area_two.overlaps(area_one));
+    }
+
+
     #[test]
     fn append_search_normal() {
         let mut foo = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
@@ -250,7 +320,6 @@ mod test_quadtree{
         }
     }
 
-    #[test]
     fn good_fill() {
         let mut q = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
         for x in -1000..1000{
@@ -259,5 +328,6 @@ mod test_quadtree{
                 q.append_point(p, (x,y)).unwrap();
             }
         }
+        assert!(q.search(Point::new(0.0, 0.0)).is_some());
     }
 }
