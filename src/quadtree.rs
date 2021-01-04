@@ -125,7 +125,12 @@ impl<T> QuadTree<T>{
         }
         self.node.search(self.boundry, p)
     }
+    
+    fn values_in_area(&self, search_area: Boundry) -> Vec<&T>{
+        self.node.values_in_area(self.boundry, search_area)
+    }
 }
+
 impl<T> QuadTreeNode<T>{
     fn append_point(&mut self, boundry: Boundry, coords: Point, data: T) {
         // let newnode = QuadTreeNode::None;
@@ -190,17 +195,23 @@ impl<T> QuadTreeNode<T>{
         }
     }
 
-    fn values_in_area(&self, area: Boundry) -> Vec<&T>{
+    fn values_in_area(&self, own_area: Boundry, search_area: Boundry) -> Vec<&T>{
         let mut found = Vec::new();
         match self{
             QuadTreeNode::None => {},
             QuadTreeNode::Leaf(coords, data) => {
-                if area.is_inside(*coords){
+                if search_area.is_inside(*coords){
                     found.push(data);
                 }
             }
             QuadTreeNode::Node(quadrants) => {
-
+                let own_subareas = own_area.split();
+                for i in 0..4{
+                    if quadrants[i].is_some() && own_subareas[i].overlaps(search_area) {
+                        let quadrant = quadrants[i].as_ref().unwrap();
+                        found.append(&mut quadrant.values_in_area(own_subareas[i], search_area));
+                    }
+                }
             }
         }
         found
@@ -319,6 +330,7 @@ mod test_quadtree{
             assert_eq!(foo.search(point), Some(&cnt));
         }
     }
+    
 
     fn good_fill() {
         let mut q = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
@@ -330,4 +342,89 @@ mod test_quadtree{
         }
         assert!(q.search(Point::new(0.0, 0.0)).is_some());
     }
+
+    #[test]
+    fn values_in_area_empty() {
+        let tree: QuadTree<(f64, f64)> = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        let search_area = Boundry::from_coords(-1.0, -1.0, 1.0, 1.0);
+        assert_eq!(tree.values_in_area(search_area).len(), 0);
+    }
+
+    #[test]
+    fn values_in_area_one() {
+        let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        let point = Point::new(0.0, 0.0);
+        tree.append_point(point, 42.0).unwrap();
+        let search_area = Boundry::from_coords(-1.0, -1.0, 1.0, 1.0);
+        assert_eq!(tree.values_in_area(search_area).len(), 1);
+    }
+
+    #[test]
+    fn values_in_area_deep() {
+        let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        for i in 0..100 {
+            let point = Point::new(i as f64/1000.0, i as f64/1000.0);
+            tree.append_point(point, i).unwrap();
+        }
+        let search_area = Boundry::from_coords(-1.0, -1.0, 1.0, 1.0);
+        assert_eq!(tree.values_in_area(search_area).len(), 100);
+    }
+
+    #[test]
+    fn values_in_area_wide_with_overlap() {
+        let mut tree = QuadTree::new(Boundry::from_coords(0.0, 0.0, 1.0, 1.0));
+        for i in 0..100 {
+            let point = Point::new(i as f64/100.0, i as f64/100.0);
+            tree.append_point(point, i).unwrap();
+        }
+        let search_area = Boundry::from_coords(-1.0, -1.0, 2.0, 2.0);
+        assert_eq!(tree.values_in_area(search_area).len(), 100);
+    }
+
+    #[test]
+    fn values_in_area_partial() {
+        let mut tree = QuadTree::new(Boundry::from_coords(0.0, 0.0, 1.0, 1.0));
+        for i in 0..100 {
+            let point = Point::new(i as f64/100.0, i as f64/100.0);
+            tree.append_point(point, i).unwrap();
+        }
+        let search_area = Boundry::from_coords(0.0, 0.0, 0.1, 0.1);
+        // we have 11 results because area is inclusive 0.1, 0.1 is match
+        // as well as 0.0
+        assert_eq!(tree.values_in_area(search_area).len(), 11);
+    }
+
+    #[test]
+    fn values_in_area_outside_search_range() {
+        let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        for i in 0..100 {
+            let point = Point::new(i as f64/100.0, i as f64/100.0);
+            tree.append_point(point, i).unwrap();
+        }
+        let search_area = Boundry::from_coords(-1.0, -1.0, -0.5, -0.5);
+        assert_eq!(tree.values_in_area(search_area).len(), 0);
+    }
+
+    #[test]
+    fn values_in_area_small_range() {
+        let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        for i in 0..100 {
+            let point = Point::new(i as f64/100.0, i as f64/100.0);
+            tree.append_point(point, i).unwrap();
+        }
+        let search_area = Boundry::from_coords(0.895, 0.895, 0.905, 0.905);
+        assert_eq!(tree.values_in_area(search_area).len(), 1);
+    }
+
+    #[test]
+    fn values_in_area_too_small_range() {
+        let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        for i in 0..100 {
+            let point = Point::new(i as f64/100.0, i as f64/100.0);
+            tree.append_point(point, i).unwrap();
+        }
+        let search_area = Boundry::from_coords(0.898, 0.898, 0.899, 0.899);
+        assert_eq!(tree.values_in_area(search_area).len(), 0);
+    }
+
 }
