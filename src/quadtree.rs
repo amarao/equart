@@ -58,9 +58,9 @@ impl Boundry {
 
     pub fn find_quadrant(&self, p: Point) -> (Self, usize){
         let quadrants = self.split();
-        for i in 0..4{
-            if quadrants[i].is_inside(p){
-                return (quadrants[i], i)
+        for (i, q) in quadrants.iter().enumerate(){
+            if q.is_inside(p){
+                return (*q, i)
             }
         }
         panic!("point {:?} outside of boundries {:?}", p, self);
@@ -142,7 +142,7 @@ impl<T> QuadTreeNode<T>{
             },
             QuadTreeNode::Leaf(old_coords, old_data) => {
                 if old_coords != coords {
-                    let (subboundry, index) = boundry.find_quadrant(coords);
+                    let (_subboundry, index) = boundry.find_quadrant(coords);
                     let (old_subboundry, old_index) = boundry.find_quadrant(old_coords);
                     let mut node = [None, None, None, None];
                     let mut newnode = QuadTreeNode::Leaf(coords, data);
