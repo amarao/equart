@@ -13,3 +13,10 @@ rand = "*"
 num_cpus = "*"
 gfx_device_gl = "*"
 array2d = "*"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "treebench"
+harness = false

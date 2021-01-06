@@ -87,13 +87,13 @@ enum QuadTreeNode<T> {
     None
 }
 
-struct QuadTree<T>{
+pub struct QuadTree<T>{
     boundry: Boundry,
     node: QuadTreeNode<T>,
 }
 
 impl<T> QuadTree<T>{
-    fn new(b: Boundry) -> Self{
+    pub fn new(b: Boundry) -> Self{
         QuadTree{
             boundry: b,
             node: QuadTreeNode::None
@@ -107,11 +107,11 @@ impl<T> QuadTree<T>{
     //     }
     // }
 
-    fn is_inside(&self, p: Point) -> bool{
+    pub fn is_inside(&self, p: Point) -> bool{
         self.boundry.is_inside(p)
     }
 
-    fn append_point(&mut self, coords: Point, data: T) -> Result<(), ()>{
+    pub fn append_point(&mut self, coords: Point, data: T) -> Result<(), ()>{
         if !self.boundry.is_inside(coords){
             return Err(());
         }
@@ -119,14 +119,14 @@ impl<T> QuadTree<T>{
         Ok(())
     }
     /// Search data py point
-    fn search(&self, p: Point) -> Option<&T>{
+    pub fn search(&self, p: Point) -> Option<&T>{
         if !self.boundry.is_inside(p){
             return None;
         }
         self.node.search(self.boundry, p)
     }
     
-    fn values_in_area(&self, search_area: Boundry) -> Vec<&T>{
+    pub fn values_in_area(&self, search_area: Boundry) -> Vec<&T>{
         self.node.values_in_area(self.boundry, search_area)
     }
 }
