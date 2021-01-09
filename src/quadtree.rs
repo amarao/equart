@@ -83,7 +83,7 @@ impl PartialEq for Boundry{
 
 enum QuadTreeNode<T> {
     Leaf(Point, T),
-    Node([Option<Box<QuadTreeNode<T>>>; 4]),
+    Node(Vec<QuadTreeNode<T>>),
     None
 }
 
@@ -132,6 +132,12 @@ impl<T> QuadTree<T>{
 }
 
 impl<T> QuadTreeNode<T>{
+    fn is_none(&self) -> bool {
+        match self{
+            QuadTreeNode::None => true,
+            _ => false,
+        }
+    }
     fn append_point(&mut self, boundry: Boundry, coords: Point, data: T) {
         // let newnode = QuadTreeNode::None;
         // let oldnode = std::mem::replace(&mut self.node, newnode);
@@ -141,31 +147,24 @@ impl<T> QuadTreeNode<T>{
                 *self = QuadTreeNode::Leaf(coords, data);
             },
             QuadTreeNode::Leaf(old_coords, old_data) => {
-                if old_coords != coords {
-                    let (_subboundry, index) = boundry.find_quadrant(coords);
+                if old_coords != coords{
+                    let mut quadrants = vec![QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None];
+                    let (subboundry, index) = boundry.find_quadrant(coords);
                     let (old_subboundry, old_index) = boundry.find_quadrant(old_coords);
-                    let mut node = [None, None, None, None];
-                    let mut newnode = QuadTreeNode::Leaf(coords, data);
-                    if index == old_index {
-                        newnode.append_point(old_subboundry, old_coords, old_data);
-                    }else{
-                        let oldnode = QuadTreeNode::Leaf(old_coords, old_data);
-                        node[old_index] = Some(Box::new(oldnode));
-                    }
-                    node[index] =  Some(Box::new(newnode));
-                    *self = QuadTreeNode::Node(node);
+                    quadrants[index].append_point(subboundry, coords, data);
+                    quadrants[old_index].append_point(old_subboundry, old_coords, old_data);
+                    *self = QuadTreeNode::Node(quadrants);
+                }
+                else{
+                    *self = QuadTreeNode::Leaf(coords, data);
                 }
             },
             QuadTreeNode::Node(ref mut quadrants) => {
                 let (subboundry, index) = boundry.find_quadrant(coords);
                 if quadrants[index].is_none(){
-                    quadrants[index] = Some(Box::new(QuadTreeNode::Leaf(coords, data)));
+                    quadrants[index] = QuadTreeNode::Leaf(coords, data);
                 }else{
-                    let mut some_box_subnode = None;
-                    std::mem::swap(&mut quadrants[index], &mut some_box_subnode);
-                    let mut subnode = *(some_box_subnode.unwrap());
-                    subnode.append_point(subboundry, coords, data);
-                    quadrants[index] = Some(Box::new(subnode));
+                    quadrants[index].append_point(subboundry, coords, data);
                 }
                 *self = current;
             }
@@ -184,13 +183,7 @@ impl<T> QuadTreeNode<T>{
             },
             QuadTreeNode::Node(quadrants) => {
                 let (subboundry, index) = b.find_quadrant(p);
-                if quadrants[index].is_none(){
-                    None
-                }
-                else{
-                    let unpacked = quadrants[index].as_ref().unwrap();
-                    unpacked.search(subboundry, p)
-                }
+                quadrants[index].search(subboundry, p)
             }
         }
     }
@@ -207,9 +200,8 @@ impl<T> QuadTreeNode<T>{
             QuadTreeNode::Node(quadrants) => {
                 let own_subareas = own_area.split();
                 for i in 0..4{
-                    if quadrants[i].is_some() && own_subareas[i].overlaps(search_area) {
-                        let quadrant = quadrants[i].as_ref().unwrap();
-                        found.append(&mut quadrant.values_in_area(own_subareas[i], search_area));
+                    if own_subareas[i].overlaps(search_area) {
+                        found.append(&mut quadrants[i].values_in_area(own_subareas[i], search_area));
                     }
                 }
             }
@@ -321,28 +313,16 @@ mod test_quadtree{
 
     #[test]
     fn fill_quadrant() {
-        let mut foo = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
         let mut point = Point::new(0.5, 0.5);
         for cnt in 0..1024{
             point.x /= 1.01;
             point.y /= 1.01;
-            assert_eq!(foo.append_point(point, cnt), Ok(()));
-            assert_eq!(foo.search(point), Some(&cnt));
+            assert_eq!(tree.append_point(point, cnt), Ok(()));
+            assert_eq!(tree.search(point), Some(&cnt));
         }
     }
     
-
-    fn good_fill() {
-        let mut q = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
-        for x in -1000..1000{
-            for y in -1000..1000{
-                let p = Point::new(x as f64/1000.0, y as f64/1000.0);
-                q.append_point(p, (x,y)).unwrap();
-            }
-        }
-        assert!(q.search(Point::new(0.0, 0.0)).is_some());
-    }
-
     #[test]
     fn values_in_area_empty() {
         let tree: QuadTree<(f64, f64)> = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
@@ -427,4 +407,20 @@ mod test_quadtree{
         assert_eq!(tree.values_in_area(search_area).len(), 0);
     }
 
+    #[test]
+    fn double_fill(){
+        // stack overflow from benchmark function
+        fn black_box<T>(x:T) ->T {
+            x
+        }
+        let mut q = QuadTree::new(Boundry::from_coords(0.0, 0.0, 20.0, 20.0));
+        for c in 0..2{
+            for x in 0..20{
+                for y in 0..20{
+                    let p = Point::new(black_box(x as f64), black_box(y as f64));
+                    black_box(q.append_point(p, black_box(x+y)));
+                }
+            }
+        }
+    }
 }
