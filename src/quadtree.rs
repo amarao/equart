@@ -81,9 +81,12 @@ impl PartialEq for Boundry{
     }
 }
 
+const MAX_POINTS: usize = 8;
+
 enum QuadTreeNode<T> {
     Leaf(Point, T),
     Node(Vec<QuadTreeNode<T>>),
+    PointGroup(Vec<(Point, T)>),
     None
 }
 
@@ -99,13 +102,6 @@ impl<T> QuadTree<T>{
             node: QuadTreeNode::None
         }
     }
-
-    // fn new_with_data(b: Boundry) -> Self{
-    //     QuadTree{
-    //         boundry: b,
-    //         node: QuadTreeNode::None
-    //     }
-    // }
 
     pub fn is_inside(&self, p: Point) -> bool{
         self.boundry.is_inside(p)
@@ -148,17 +144,37 @@ impl<T> QuadTreeNode<T>{
             },
             QuadTreeNode::Leaf(old_coords, old_data) => {
                 if old_coords != coords{
-                    let mut quadrants = vec![QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None];
-                    let (subboundry, index) = boundry.find_quadrant(coords);
-                    let (old_subboundry, old_index) = boundry.find_quadrant(old_coords);
-                    quadrants[index].append_point(subboundry, coords, data);
-                    quadrants[old_index].append_point(old_subboundry, old_coords, old_data);
-                    *self = QuadTreeNode::Node(quadrants);
+                    *self = QuadTreeNode::PointGroup(
+                        vec![(old_coords, old_data), (coords, data)]
+                    );
                 }
                 else{
                     *self = QuadTreeNode::Leaf(coords, data);
                 }
             },
+            QuadTreeNode::PointGroup(mut point_vec) => {
+                for i in 0..point_vec.len(){
+                    if point_vec[i].0 == coords{
+                        point_vec[i] = (coords, data);
+                        * self = QuadTreeNode::PointGroup(point_vec);
+                        return;
+                    }
+                }
+                if point_vec.len() < MAX_POINTS{
+                    point_vec.push((coords, data));
+                    * self = QuadTreeNode::PointGroup(point_vec);
+                }
+                else {
+                    let mut quadrants = vec![QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None];
+                    for (old_coords, old_data) in point_vec{
+                        let (subboundry, index) = boundry.find_quadrant(old_coords);
+                        quadrants[index].append_point(subboundry, old_coords, old_data);
+                    }
+                    let (subboundry, index) = boundry.find_quadrant(coords);
+                    quadrants[index].append_point(subboundry, coords, data);
+                    * self = QuadTreeNode::Node(quadrants);
+                }
+            }
             QuadTreeNode::Node(ref mut quadrants) => {
                 let (subboundry, index) = boundry.find_quadrant(coords);
                 if quadrants[index].is_none(){
@@ -181,6 +197,14 @@ impl<T> QuadTreeNode<T>{
                     None
                 }
             },
+            QuadTreeNode::PointGroup(point_vec) =>{
+                for i in 0..point_vec.len(){
+                    if point_vec[i].0 == p{
+                        return Some(&point_vec[i].1)
+                    }
+                }
+                None
+            },
             QuadTreeNode::Node(quadrants) => {
                 let (subboundry, index) = b.find_quadrant(p);
                 quadrants[index].search(subboundry, p)
@@ -195,6 +219,13 @@ impl<T> QuadTreeNode<T>{
             QuadTreeNode::Leaf(coords, data) => {
                 if search_area.is_inside(*coords){
                     found.push(data);
+                }
+            }
+            QuadTreeNode::PointGroup(point_vec) => {
+                for i in 0..point_vec.len(){
+                    if search_area.is_inside(point_vec[i].0){
+                        found.push(&point_vec[i].1);
+                    }
                 }
             }
             QuadTreeNode::Node(quadrants) => {
@@ -312,6 +343,63 @@ mod test_quadtree{
     }
 
     #[test]
+    fn add_one() {
+        let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        let point1 = Point::new(0.1, 0.1);
+        assert_eq!(tree.append_point(point1, 1), Ok(()));
+        assert_eq!(tree.search(point1), Some(&1));
+    }
+
+    #[test]
+    fn add_two() {
+        let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        let point1 = Point::new(0.1, 0.1);
+        let point2 = Point::new(0.2, 0.2);
+        assert_eq!(tree.append_point(point1, 1), Ok(()));
+        assert_eq!(tree.append_point(point2, 2), Ok(()));
+        assert_eq!(tree.search(point1), Some(&1));
+        assert_eq!(tree.search(point2), Some(&2));
+    }
+
+
+    #[test]
+    fn add_four_interleave() {
+        let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        let point1 = Point::new(0.1, 0.1);
+        let point2 = Point::new(0.2, 0.2);
+        let point3 = Point::new(0.3, 0.3);
+        let point4 = Point::new(0.4, 0.4);
+        assert_eq!(tree.append_point(point1, 1), Ok(()));
+        assert_eq!(tree.search(point1), Some(&1));
+        assert_eq!(tree.append_point(point2, 2), Ok(()));
+        assert_eq!(tree.search(point1), Some(&1));
+        assert_eq!(tree.search(point2), Some(&2));
+        assert_eq!(tree.append_point(point3, 3), Ok(()));
+        assert_eq!(tree.search(point1), Some(&1));
+        assert_eq!(tree.search(point2), Some(&2));
+        assert_eq!(tree.search(point3), Some(&3));
+        assert_eq!(tree.append_point(point4, 4), Ok(()));
+        assert_eq!(tree.search(point4), Some(&4));
+    }
+
+    #[test]
+    fn add_four() {
+        let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        let point1 = Point::new(0.1, 0.1);
+        let point2 = Point::new(0.2, 0.2);
+        let point3 = Point::new(0.3, 0.3);
+        let point4 = Point::new(0.4, 0.4);
+        assert_eq!(tree.append_point(point1, 1), Ok(()));
+        assert_eq!(tree.append_point(point2, 2), Ok(()));
+        assert_eq!(tree.append_point(point3, 3), Ok(()));
+        assert_eq!(tree.append_point(point4, 4), Ok(()));
+        assert_eq!(tree.search(point1), Some(&1));
+        assert_eq!(tree.search(point2), Some(&2));
+        assert_eq!(tree.search(point3), Some(&3));
+        assert_eq!(tree.search(point4), Some(&4));
+    }
+
+    #[test]
     fn fill_quadrant() {
         let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
         let mut point = Point::new(0.5, 0.5);
@@ -406,6 +494,19 @@ mod test_quadtree{
         let search_area = Boundry::from_coords(0.898, 0.898, 0.899, 0.899);
         assert_eq!(tree.values_in_area(search_area).len(), 0);
     }
+
+    #[test]
+    fn good_fill() {
+        let mut q = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
+        for x in -1000..1000{
+            for y in -1000..1000{
+                let p = Point::new(x as f64/1000.0, y as f64/1000.0);
+                q.append_point(p, (x,y)).unwrap();
+            }
+        }
+        assert!(q.search(Point::new(0.0, 0.0)).is_some());
+    }
+        
 
     #[test]
     fn double_fill(){

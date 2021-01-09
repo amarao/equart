@@ -35,5 +35,35 @@ pub fn bench(c: &mut Criterion) {
     ));
 }
 
+pub fn better(c: &mut Criterion) {
+    let mut group = c.benchmark_group("better");
+    group.bench_function("Box 100", |b| b.iter(
+        ||{
+        let mut v = Vec::new();
+        for y in 0..100{
+            
+                let b = Box::new(black_box(42.0f64));
+                v.push(b);
+            }
+        }
+    ));
+    group.bench_function("array", |b| b.iter(
+        ||{
+        let mut v = Vec::new();
+        let mut z:f64 = 0.0f64;
+        for y in 0..100{
+            for x in 0..y{
+                if v[x] == black_box(v[x]){
+                    z = x as f64 + 1.0f64;
+                }
+            }
+            v.push(z);
+            }
+        }
+    ));
+}
+
+
 criterion_group!(bench1, bench);
-criterion_main!(bench1);
+criterion_group!(bench2, better);
+criterion_main!(bench1, bench2);
