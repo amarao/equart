@@ -81,7 +81,7 @@ impl PartialEq for Boundry{
     }
 }
 
-const MAX_POINTS: usize = 8;
+const MAX_POINTS: usize = 14;
 
 enum QuadTreeNode<T> {
     Leaf(Point, T),
