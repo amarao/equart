@@ -81,10 +81,9 @@ impl PartialEq for Boundry{
     }
 }
 
-const MAX_POINTS: usize = 10;
+const MAX_POINTS: usize = 9;
 
 enum QuadTreeNode<T> {
-    Leaf(Point, T),
     Node(Vec<QuadTreeNode<T>>),
     PointGroup(Vec<(Point, T)>),
     None
@@ -146,18 +145,9 @@ impl<T> QuadTreeNode<T>{
         let mut current = std::mem::take(self);
         match current {
             QuadTreeNode::None => {
-                *self = QuadTreeNode::Leaf(coords, data);
-            },
-            QuadTreeNode::Leaf(old_coords, old_data) => {
-                if old_coords != coords{
-                    let mut v = Vec::with_capacity(MAX_POINTS);
-                    v.push((old_coords, old_data));
-                    v.push((coords, data));
-                    *self = QuadTreeNode::PointGroup(v);
-                }
-                else{
-                    *self = QuadTreeNode::Leaf(coords, data);
-                }
+                let mut v = Vec::with_capacity(MAX_POINTS);
+                v.push((coords, data));
+                *self = QuadTreeNode::PointGroup(v);
             },
             QuadTreeNode::PointGroup(mut point_vec) => {
                 for i in 0..point_vec.len(){
@@ -184,11 +174,7 @@ impl<T> QuadTreeNode<T>{
             }
             QuadTreeNode::Node(ref mut quadrants) => {
                 let (subboundry, index) = boundry.find_quadrant(coords);
-                if quadrants[index].is_none(){
-                    quadrants[index] = QuadTreeNode::Leaf(coords, data);
-                }else{
-                    quadrants[index].append_point(subboundry, coords, data);
-                }
+                quadrants[index].append_point(subboundry, coords, data);
                 *self = current;
             }
         }
@@ -196,14 +182,6 @@ impl<T> QuadTreeNode<T>{
     fn search(&self, b: Boundry, p: Point) -> Option<&T>{
         match self{
             QuadTreeNode::None => None,
-            QuadTreeNode::Leaf(coords, data) => {
-                if *coords == p{
-                    Some(&data)
-                }
-                else {
-                    None
-                }
-            },
             QuadTreeNode::PointGroup(point_vec) =>{
                 for i in 0..point_vec.len(){
                     if point_vec[i].0 == p{
@@ -223,11 +201,6 @@ impl<T> QuadTreeNode<T>{
         let mut found = Vec::new();
         match self{
             QuadTreeNode::None => {},
-            QuadTreeNode::Leaf(coords, data) => {
-                if search_area.is_inside(*coords){
-                    found.push(data);
-                }
-            }
             QuadTreeNode::PointGroup(point_vec) => {
                 for i in 0..point_vec.len(){
                     if search_area.is_inside(point_vec[i].0){
