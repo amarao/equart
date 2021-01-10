@@ -10,7 +10,7 @@ pub fn bench(c: &mut Criterion) {
             for x in 0..20{
                 for y in 0..20{
                     let p = Point::new(black_box(x as f64), black_box(y as f64));
-                    black_box(q.append_point(p, black_box(x+y)));
+                    black_box(q.append_point(p, black_box((x,y))));
                 }
             }
         }
@@ -19,7 +19,7 @@ pub fn bench(c: &mut Criterion) {
     for x in 0..20{
         for y in 0..20{
             let p = Point::new(black_box(x as f64), black_box(y as f64));
-            black_box(q.append_point(p, black_box(x+y)));
+            black_box(q.append_point(p, black_box((x,y))));
         }
     }
     group.bench_function("search_positive_20x20", |b| b.iter(

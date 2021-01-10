@@ -81,7 +81,9 @@ impl PartialEq for Boundry{
     }
 }
 
-const MAX_POINTS: usize = 9;
+
+const MAX_POINTS: usize = 12;
+
 
 enum QuadTreeNode<T> {
     Node(Vec<QuadTreeNode<T>>),
@@ -140,8 +142,6 @@ impl<T> QuadTreeNode<T>{
         }
     }
     fn append_point(&mut self, boundry: Boundry, coords: Point, data: T) {
-        // let newnode = QuadTreeNode::None;
-        // let oldnode = std::mem::replace(&mut self.node, newnode);
         let mut current = std::mem::take(self);
         match current {
             QuadTreeNode::None => {
@@ -150,13 +150,13 @@ impl<T> QuadTreeNode<T>{
                 *self = QuadTreeNode::PointGroup(v);
             },
             QuadTreeNode::PointGroup(mut point_vec) => {
-                for i in 0..point_vec.len(){
-                    if point_vec[i].0 == coords{
-                        point_vec[i] = (coords, data);
-                        * self = QuadTreeNode::PointGroup(point_vec);
-                        return;
-                    }
-                }
+                // for i in 0..point_vec.len(){
+                //     if point_vec[i].0 == coords {
+                //         point_vec[i] = (coords, data);
+                //         * self = QuadTreeNode::PointGroup(point_vec);
+                //         return;
+                //     }
+                // }
                 if point_vec.len() < MAX_POINTS{
                     point_vec.push((coords, data));
                     * self = QuadTreeNode::PointGroup(point_vec);
