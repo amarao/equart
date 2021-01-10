@@ -56,9 +56,9 @@ impl Boundry {
         ]
     }
 
-    pub fn find_quadrant(&self, p: Point) -> (Self, usize){
-        let quadrants = self.split();
-        for (i, q) in quadrants.iter().enumerate(){
+    pub fn find_subarea(&self, p: Point) -> (Self, usize){
+        let subareas = self.split();
+        for (i, q) in subareas.iter().enumerate(){
             if q.is_inside(p){
                 return (*q, i)
             }
@@ -83,6 +83,7 @@ impl PartialEq for Boundry{
 
 
 const MAX_POINTS: usize = 12;
+const AREA_DIMENTION: usize = 4;
 
 
 enum QuadTreeNode<T> {
@@ -162,19 +163,19 @@ impl<T> QuadTreeNode<T>{
                     * self = QuadTreeNode::PointGroup(point_vec);
                 }
                 else {
-                    let mut quadrants = vec![QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None];
+                    let mut subareas = vec![QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None];
                     for (old_coords, old_data) in point_vec{
-                        let (subboundry, index) = boundry.find_quadrant(old_coords);
-                        quadrants[index].append_point(subboundry, old_coords, old_data);
+                        let (subboundry, index) = boundry.find_subarea(old_coords);
+                        subareas[index].append_point(subboundry, old_coords, old_data);
                     }
-                    let (subboundry, index) = boundry.find_quadrant(coords);
-                    quadrants[index].append_point(subboundry, coords, data);
-                    * self = QuadTreeNode::Node(quadrants);
+                    let (subboundry, index) = boundry.find_subarea(coords);
+                    subareas[index].append_point(subboundry, coords, data);
+                    * self = QuadTreeNode::Node(subareas);
                 }
             }
-            QuadTreeNode::Node(ref mut quadrants) => {
-                let (subboundry, index) = boundry.find_quadrant(coords);
-                quadrants[index].append_point(subboundry, coords, data);
+            QuadTreeNode::Node(ref mut subareas) => {
+                let (subboundry, index) = boundry.find_subarea(coords);
+                subareas[index].append_point(subboundry, coords, data);
                 *self = current;
             }
         }
@@ -190,9 +191,9 @@ impl<T> QuadTreeNode<T>{
                 }
                 None
             },
-            QuadTreeNode::Node(quadrants) => {
-                let (subboundry, index) = b.find_quadrant(p);
-                quadrants[index].search(subboundry, p)
+            QuadTreeNode::Node(subareas) => {
+                let (subboundry, index) = b.find_subarea(p);
+                subareas[index].search(subboundry, p)
             }
         }
     }
@@ -208,11 +209,11 @@ impl<T> QuadTreeNode<T>{
                     }
                 }
             }
-            QuadTreeNode::Node(quadrants) => {
+            QuadTreeNode::Node(subareas) => {
                 let own_subareas = own_area.split();
-                for i in 0..4{
+                for i in 0..AREA_DIMENTION{
                     if own_subareas[i].overlaps(search_area) {
-                        found.append(&mut quadrants[i].values_in_area(own_subareas[i], search_area));
+                        found.append(&mut subareas[i].values_in_area(own_subareas[i], search_area));
                     }
                 }
             }

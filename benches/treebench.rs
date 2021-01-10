@@ -3,7 +3,6 @@ use equart::quadtree::*;
 
 pub fn bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("quadtree");
-    group.measurement_time(core::time::Duration::new(10, 0));
     group.bench_function("fill_20x20", |b| b.iter(
         ||{
             let mut q = QuadTree::new(Boundry::from_coords(0.0, 0.0, 20.0, 20.0));
@@ -46,5 +45,13 @@ pub fn bench(c: &mut Criterion) {
 }
 
 
+pub fn bench_subarea(c: &mut Criterion) {
+    c.bench_function("find_subarea", |b| b.iter(||{
+        let b = Boundry::from_coords(0.0, 0.0, 1.0, 1.0);
+        b.find_subarea(black_box(Point::new(0.5, 0.5)));
+    }));
+}
+
 criterion_group!(bench1, bench);
-criterion_main!(bench1);
+criterion_group!(bench2, bench_subarea);
+criterion_main!(bench1, bench2);
