@@ -10,6 +10,15 @@ impl Point {
         Point{x,y}
     }
 
+    pub fn coord_offset(coord: f64, start: f64, end: f64) -> (f64, f64, usize) {
+        let middle =(start+end)/2.0; 
+        if coord <= middle {
+            (start, middle, 0) }
+        else {
+            (middle, end, 1)
+        }
+    }
+
     pub fn in_area(&self, start: Point, end: Point) -> bool {
         self.x >= start.x && self.x <= end.x && self.y >= start.y && self.y <= end.y
     }
@@ -57,14 +66,15 @@ impl Boundry {
     }
 
     pub fn find_subarea(&self, p: Point) -> (Self, usize){
-        let subareas = self.split();
-        for (i, q) in subareas.iter().enumerate(){
-            if q.is_inside(p){
-                return (*q, i)
-            }
-        }
-        panic!("point {:?} outside of boundries {:?}", p, self);
+        let (start_x, end_x, index_x) = Point::coord_offset(p.x, self.start.x, self.end.x);
+        let (start_y, end_y, index_y) = Point::coord_offset(p.y, self.start.y, self.end.y);
+        let index = index_y * 2 + index_x;
+        (
+            Self::from_coords(start_x, start_y, end_x, end_y),
+            index
+        )
     }
+    
 
     /// Return true if other overlaps with self.
     pub fn overlaps(&self, other: Self) -> bool {
@@ -82,7 +92,7 @@ impl PartialEq for Boundry{
 }
 
 
-const MAX_POINTS: usize = 12;
+const MAX_POINTS: usize =12;
 const AREA_DIMENTION: usize = 4;
 
 
@@ -143,6 +153,9 @@ impl<T> QuadTreeNode<T>{
         }
     }
     fn append_point(&mut self, boundry: Boundry, coords: Point, data: T) {
+        // dbg!("append_point");
+        // dbg!(boundry);
+        // dbg!(coords);
         let mut current = std::mem::take(self);
         match current {
             QuadTreeNode::None => {
@@ -166,9 +179,15 @@ impl<T> QuadTreeNode<T>{
                     let mut subareas = vec![QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None];
                     for (old_coords, old_data) in point_vec{
                         let (subboundry, index) = boundry.find_subarea(old_coords);
+                        // dbg!("relocate");
+                        // dbg!(old_coords);
+                        // dbg!(old_data);
+                        // dbg!(subboundry);
+                        // dbg!(index);
                         subareas[index].append_point(subboundry, old_coords, old_data);
                     }
                     let (subboundry, index) = boundry.find_subarea(coords);
+                    // dbg!("post_add");
                     subareas[index].append_point(subboundry, coords, data);
                     * self = QuadTreeNode::Node(subareas);
                 }
@@ -253,6 +272,56 @@ mod test_quadtree{
             Boundry::from_coords(1.0, 0.0, 2.0, 1.0)
         );
     }
+    
+    #[test]
+    fn find_subarea_0(){
+        let area = Boundry::from_coords(0.0, 0.0, 2.0, 2.0);
+        let p = Point::new(0.5, 0.5);
+        assert_eq!(
+            area.find_subarea(p),
+            (Boundry::from_coords(0.0, 0.0, 1.0, 1.0), 0)
+        )
+    }
+    #[test]
+    fn find_subarea_1(){
+        let area = Boundry::from_coords(0.0, 0.0, 2.0, 2.0);
+        let p = Point::new(1.5, 0.5);
+        assert_eq!(
+            area.find_subarea(p),
+            (Boundry::from_coords(1.0, 0.0, 2.0, 1.0), 1)
+        )
+    }
+    #[test]
+    fn find_subarea_2(){
+        let area = Boundry::from_coords(0.0, 0.0, 2.0, 2.0);
+        let p = Point::new(0.5, 1.5);
+        assert_eq!(
+            area.find_subarea(p),
+            (Boundry::from_coords(0.0, 1.0, 1.0, 2.0), 2)
+        )
+    }
+
+
+    #[test]
+    fn find_subarea_case_2(){
+        let area = Boundry::from_coords(-1.0, -1.0, 1.0, 1.0);
+        let p = Point::new(0.4950, 0.4950);
+        assert_eq!(
+            area.find_subarea(p),
+            (Boundry::from_coords(0.0, 0.0, 1.0, 1.0), 3)
+        )
+    }
+
+    #[test]
+    fn find_subarea_3(){
+        let area = Boundry::from_coords(0.0, 0.0, 2.0, 2.0);
+        let p = Point::new(1.5, 1.5);
+        assert_eq!(
+            area.find_subarea(p),
+            (Boundry::from_coords(1.0, 1.0, 2.0, 2.0), 3)
+        )
+    }
+
 
     #[test]
     fn overlaps_inside(){
@@ -384,7 +453,7 @@ mod test_quadtree{
     fn fill_quadrant() {
         let mut tree = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
         let mut point = Point::new(0.5, 0.5);
-        for cnt in 0..1024{
+        for cnt in 0..14{
             point.x /= 1.01;
             point.y /= 1.01;
             assert_eq!(tree.append_point(point, cnt), Ok(()));
