@@ -92,7 +92,7 @@ impl PartialEq for Boundry{
 }
 
 
-const MAX_POINTS: usize =12;
+const MAX_POINTS: usize = 11;
 const AREA_DIMENTION: usize = 4;
 
 
