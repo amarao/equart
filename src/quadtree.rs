@@ -83,6 +83,12 @@ impl Boundry {
         other.start.in_area(self.start, self.end) ||
         other.end.in_area(self.start, self.end)
     }
+
+    /// Return true if self is completely inside other
+    pub fn contained_inside(&self, other:Self) -> bool {
+        self.start.in_area(other.start, other.end) &&
+        self.end.in_area(other.start, other.end)
+    }
 }
 
 impl PartialEq for Boundry{
@@ -217,6 +223,25 @@ impl<T> QuadTreeNode<T>{
         }
     }
 
+    ///Return all points in subtree
+    fn all_values(&self) -> Vec<&T>{
+        let mut data:Vec<&T> = Vec::new();
+        match self{
+            QuadTreeNode::None => {},
+            QuadTreeNode::PointGroup(point_vec) => {
+                for p in point_vec{
+                    data.push(&p.1);
+                }
+            }
+            QuadTreeNode::Node(subareas) => {
+                for i in 0..AREA_DIMENTION{
+                    data.append(&mut subareas[i].all_values());
+                }
+            }
+        }
+        data
+    }
+
     fn values_in_area(&self, own_area: Boundry, search_area: Boundry) -> Vec<&T>{
         let mut found = Vec::new();
         match self{
@@ -231,7 +256,10 @@ impl<T> QuadTreeNode<T>{
             QuadTreeNode::Node(subareas) => {
                 let own_subareas = own_area.split();
                 for i in 0..AREA_DIMENTION{
-                    if own_subareas[i].overlaps(search_area) {
+                    if own_subareas[i].contained_inside(search_area){
+                        found.append(&mut subareas[i].all_values());
+                    }
+                    else if own_subareas[i].overlaps(search_area) {
                         found.append(&mut subareas[i].values_in_area(own_subareas[i], search_area));
                     }
                 }
