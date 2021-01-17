@@ -11,7 +11,7 @@ impl Point {
     }
 
     pub fn coord_offset(coord: f64, start: f64, end: f64) -> (f64, f64, usize) {
-        let middle =(start+end)/2.0; 
+        let middle =(start+end)/2.0;
         if coord <= middle {
             (start, middle, 0) }
         else {
@@ -74,7 +74,7 @@ impl Boundry {
             index
         )
     }
-    
+
 
     /// Return true if other overlaps with self.
     pub fn overlaps(&self, other: Self) -> bool {
@@ -103,8 +103,10 @@ const AREA_DIMENTION: usize = 4;
 
 
 enum QuadTreeNode<T> {
-    Node(Vec<QuadTreeNode<T>>),
-    PointGroup(Vec<(Point, T)>),
+    VerticalNode(Vec<QuadTreeNode<T>>),
+    HorizontalNode(Vec<QuadTreeNode<T>>),
+    VerticalPointGroup(Vec<(Point, T)>),
+    HorizontalPointGroup(Vec<(Point, T)>),
     None
 }
 
@@ -139,7 +141,7 @@ impl<T> QuadTree<T>{
         }
         self.node.search(self.boundry, p)
     }
-    
+
     pub fn values_in_area(&self, search_area: Boundry) -> Vec<&T>{
         self.node.values_in_area(self.boundry, search_area)
     }
@@ -167,9 +169,9 @@ impl<T> QuadTreeNode<T>{
             QuadTreeNode::None => {
                 let mut v = Vec::with_capacity(MAX_POINTS);
                 v.push((coords, data));
-                *self = QuadTreeNode::PointGroup(v);
+                *self = QuadTreeNode::HorizontalPointGroup(v);
             },
-            QuadTreeNode::PointGroup(mut point_vec) => {
+            QuadTreeNode::HorizontalPointGroup(mut point_vec) => {
                 // for i in 0..point_vec.len(){
                 //     if point_vec[i].0 == coords {
                 //         point_vec[i] = (coords, data);
@@ -179,7 +181,7 @@ impl<T> QuadTreeNode<T>{
                 // }
                 if point_vec.len() < MAX_POINTS{
                     point_vec.push((coords, data));
-                    * self = QuadTreeNode::PointGroup(point_vec);
+                    * self = QuadTreeNode::HorizontalPointGroup(point_vec);
                 }
                 else {
                     let mut subareas = vec![QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None, QuadTreeNode::None];
@@ -195,20 +197,22 @@ impl<T> QuadTreeNode<T>{
                     let (subboundry, index) = boundry.find_subarea(coords);
                     // dbg!("post_add");
                     subareas[index].append_point(subboundry, coords, data);
-                    * self = QuadTreeNode::Node(subareas);
+                    * self = QuadTreeNode::HorizontalNode(subareas);
                 }
             }
-            QuadTreeNode::Node(ref mut subareas) => {
+            QuadTreeNode::HorizontalNode(ref mut subareas) => {
                 let (subboundry, index) = boundry.find_subarea(coords);
                 subareas[index].append_point(subboundry, coords, data);
                 *self = current;
             }
+            QuadTreeNode::VerticalPointGroup(_) => {unimplemented!()},
+            QuadTreeNode::VerticalNode(_) => {unimplemented!()},
         }
     }
     fn search(&self, b: Boundry, p: Point) -> Option<&T>{
         match self{
             QuadTreeNode::None => None,
-            QuadTreeNode::PointGroup(point_vec) =>{
+            QuadTreeNode::HorizontalPointGroup(point_vec) =>{
                 for i in 0..point_vec.len(){
                     if point_vec[i].0 == p{
                         return Some(&point_vec[i].1)
@@ -216,10 +220,12 @@ impl<T> QuadTreeNode<T>{
                 }
                 None
             },
-            QuadTreeNode::Node(subareas) => {
+            QuadTreeNode::HorizontalNode(subareas) => {
                 let (subboundry, index) = b.find_subarea(p);
                 subareas[index].search(subboundry, p)
             }
+            QuadTreeNode::VerticalPointGroup(_) => {unimplemented!()},
+            QuadTreeNode::VerticalNode(_) => {unimplemented!()},
         }
     }
 
@@ -228,16 +234,18 @@ impl<T> QuadTreeNode<T>{
         let mut data:Vec<&T> = Vec::new();
         match self{
             QuadTreeNode::None => {},
-            QuadTreeNode::PointGroup(point_vec) => {
+            QuadTreeNode::HorizontalPointGroup(point_vec) => {
                 for p in point_vec{
                     data.push(&p.1);
                 }
             }
-            QuadTreeNode::Node(subareas) => {
+            QuadTreeNode::HorizontalNode(subareas) => {
                 for i in 0..AREA_DIMENTION{
                     data.append(&mut subareas[i].all_values());
                 }
             }
+            QuadTreeNode::VerticalPointGroup(_) => {unimplemented!()},
+            QuadTreeNode::VerticalNode(_) => {unimplemented!()},
         }
         data
     }
@@ -246,14 +254,14 @@ impl<T> QuadTreeNode<T>{
         let mut found = Vec::new();
         match self{
             QuadTreeNode::None => {},
-            QuadTreeNode::PointGroup(point_vec) => {
+            QuadTreeNode::HorizontalPointGroup(point_vec) => {
                 for i in 0..point_vec.len(){
                     if search_area.is_inside(point_vec[i].0){
                         found.push(&point_vec[i].1);
                     }
                 }
             }
-            QuadTreeNode::Node(subareas) => {
+            QuadTreeNode::HorizontalNode(subareas) => {
                 let own_subareas = own_area.split();
                 for i in 0..AREA_DIMENTION{
                     if own_subareas[i].contained_inside(search_area){
@@ -264,11 +272,13 @@ impl<T> QuadTreeNode<T>{
                     }
                 }
             }
+            QuadTreeNode::VerticalPointGroup(_) => {unimplemented!()},
+            QuadTreeNode::VerticalNode(_) => {unimplemented!()},
         }
         found
     }
 }
-            
+
 
 #[cfg(test)]
 mod test_quadtree{
@@ -300,7 +310,7 @@ mod test_quadtree{
             Boundry::from_coords(1.0, 0.0, 2.0, 1.0)
         );
     }
-    
+
     #[test]
     fn find_subarea_0(){
         let area = Boundry::from_coords(0.0, 0.0, 2.0, 2.0);
@@ -488,7 +498,7 @@ mod test_quadtree{
             assert_eq!(tree.search(point), Some(&cnt));
         }
     }
-    
+
     #[test]
     fn values_in_area_empty() {
         let tree: QuadTree<(f64, f64)> = QuadTree::new(Boundry::from_coords(-1.0, -1.0, 1.0, 1.0));
@@ -584,7 +594,7 @@ mod test_quadtree{
         }
         assert!(q.search(Point::new(0.0, 0.0)).is_some());
     }
-        
+
 
     #[test]
     fn double_fill(){
