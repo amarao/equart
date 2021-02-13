@@ -1,5 +1,7 @@
+use arr_macro::arr;
 // const N: usize = 4;
 #[derive(Debug,Clone,Copy)]
+
 pub struct Point {
     x: f64,
     y: f64
@@ -55,13 +57,19 @@ impl Boundry {
     }
 
     pub fn split(&self) -> [Self;AREA_DIMENTION*AREA_DIMENTION]{
-        let len_x = (self.end.x - self.start.x) / 2.0;
-        let len_y = (self.end.y - self.start.y) / 2.0;
+        let step_x = (self.end.x - self.start.x) / AREA_DIMENTION as f64;
+        let step_y = (self.end.y - self.start.y) / AREA_DIMENTION as f64;
+        for x_cnt in 0..AREA_DIMENTION{
+            for y_cnt in 0..AREA_DIMENTION{
+
+            }
+        }
+        
         [
-            Self::from_coords(self.start.x, self.start.y, self.start.x + len_x, self.start.y + len_y),
-            Self::from_coords(self.start.x + len_x, self.start.y, self.end.x, self.start.y + len_y),
-            Self::from_coords(self.start.x, self.start.y + len_y, self.start.x + len_x, self.end.y),
-            Self::from_coords(self.start.x + len_x, self.start.y + len_y, self.end.x, self.end.y),
+            Self::from_coords(self.start.x, self.start.y, self.start.x + step_x, self.start.y + step_y),
+            Self::from_coords(self.start.x + step_x, self.start.y, self.end.x, self.start.y + step_y),
+            Self::from_coords(self.start.x, self.start.y + step_y, self.start.x + step_x, self.end.y),
+            Self::from_coords(self.start.x + step_x, self.start.y + step_y, self.end.x, self.end.y),
         ]
     }
 
