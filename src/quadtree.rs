@@ -242,14 +242,14 @@ impl<T> QuadTreeNode<T>{
                     }
                 }
             }
-            QuadTreeNode::Node(subareas) => {
+            QuadTreeNode::Node(sub_nodes) => {
                 let own_subareas = own_area.split();
                 for i in 0..SPLITS*SPLITS{
                     if own_subareas[i].completely_inside(search_area){
-                        found.append(&mut subareas[i].all_values());
+                        found.append(&mut sub_nodes[i].all_values());
                     }
                     else if own_subareas[i].overlaps(search_area) {
-                        found.append(&mut subareas[i].values_in_area(own_subareas[i], search_area));
+                        found.append(&mut sub_nodes[i].values_in_area(own_subareas[i], search_area));
                     }
                 }
             }
