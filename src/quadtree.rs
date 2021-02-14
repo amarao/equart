@@ -1,4 +1,3 @@
-use arr_macro::arr;
 // const N: usize = 4;
 #[derive(Debug,Clone,Copy)]
 
@@ -12,7 +11,7 @@ impl Point {
         Point{x,y}
     }
 
-    pub fn coord_offset(coord: f64, start: f64, end: f64) -> (f64, f64, usize) {
+    pub fn find_subrange(coord: f64, start: f64, end: f64) -> (f64, f64, usize) {
         let middle =(start+end)/2.0; 
         if coord <= middle {
             (start, middle, 0) }
@@ -52,19 +51,13 @@ impl Boundry {
         Self::new(Point::new(start_x, start_y), Point::new(end_x, end_y))
     }
 
-    pub fn is_inside(&self, p: Point) -> bool {
+    pub fn contains(&self, p: Point) -> bool {
         p.in_area(self.start, self.end)
     }
 
     pub fn split(&self) -> [Self;AREA_DIMENTION*AREA_DIMENTION]{
         let step_x = (self.end.x - self.start.x) / AREA_DIMENTION as f64;
         let step_y = (self.end.y - self.start.y) / AREA_DIMENTION as f64;
-        for x_cnt in 0..AREA_DIMENTION{
-            for y_cnt in 0..AREA_DIMENTION{
-
-            }
-        }
-        
         [
             Self::from_coords(self.start.x, self.start.y, self.start.x + step_x, self.start.y + step_y),
             Self::from_coords(self.start.x + step_x, self.start.y, self.end.x, self.start.y + step_y),
@@ -74,9 +67,9 @@ impl Boundry {
     }
 
     pub fn find_subarea(&self, p: Point) -> (Self, usize){
-        let (start_x, end_x, index_x) = Point::coord_offset(p.x, self.start.x, self.end.x);
-        let (start_y, end_y, index_y) = Point::coord_offset(p.y, self.start.y, self.end.y);
-        let index = index_y * 2 + index_x;
+        let (start_x, end_x, index_x) = Point::find_subrange(p.x, self.start.x, self.end.x);
+        let (start_y, end_y, index_y) = Point::find_subrange(p.y, self.start.y, self.end.y);
+        let index = index_y * AREA_DIMENTION + index_x;
         (
             Self::from_coords(start_x, start_y, end_x, end_y),
             index
@@ -93,7 +86,7 @@ impl Boundry {
     }
 
     /// Return true if self is completely inside other
-    pub fn contained_inside(&self, other:Self) -> bool {
+    pub fn completely_inside(&self, other:Self) -> bool {
         self.start.in_area(other.start, other.end) &&
         self.end.in_area(other.start, other.end)
     }
@@ -129,12 +122,12 @@ impl<T> QuadTree<T>{
         }
     }
 
-    pub fn is_inside(&self, p: Point) -> bool{
-        self.boundry.is_inside(p)
+    pub fn contains(&self, p: Point) -> bool{
+        self.boundry.contains(p)
     }
 
     pub fn append_point(&mut self, coords: Point, data: T) -> Result<(), ()>{
-        if !self.boundry.is_inside(coords){
+        if !self.boundry.contains(coords){
             return Err(());
         }
         self.node.append_point(self.boundry, coords, data);
@@ -142,7 +135,7 @@ impl<T> QuadTree<T>{
     }
     /// Search data by point
     pub fn search(&self, p: Point) -> Option<&T>{
-        if !self.boundry.is_inside(p){
+        if !self.boundry.contains(p){
             return None;
         }
         self.node.search(self.boundry, p)
@@ -180,7 +173,6 @@ impl<T> QuadTreeNode<T>{
                     * self = QuadTreeNode::PointGroup(point_vec);
                 }
                 else {
-                    // let mut subareas = vec![QuadTreeNode::None; 4];
                     let mut subareas: Vec<QuadTreeNode<T>> = (0..AREA_DIMENTION*AREA_DIMENTION).map(|_| QuadTreeNode::None).collect();
                     for (old_coords, old_data) in point_vec{
                         let (subboundry, index) = boundry.find_subarea(old_coords);
@@ -241,7 +233,7 @@ impl<T> QuadTreeNode<T>{
             QuadTreeNode::None => {},
             QuadTreeNode::PointGroup(point_vec) => {
                 for i in 0..point_vec.len(){
-                    if search_area.is_inside(point_vec[i].0){
+                    if search_area.contains(point_vec[i].0){
                         found.push(&point_vec[i].1);
                     }
                 }
@@ -249,7 +241,7 @@ impl<T> QuadTreeNode<T>{
             QuadTreeNode::Node(subareas) => {
                 let own_subareas = own_area.split();
                 for i in 0..AREA_DIMENTION*AREA_DIMENTION{
-                    if own_subareas[i].contained_inside(search_area){
+                    if own_subareas[i].completely_inside(search_area){
                         found.append(&mut subareas[i].all_values());
                     }
                     else if own_subareas[i].overlaps(search_area) {
