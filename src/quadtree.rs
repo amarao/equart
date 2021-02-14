@@ -1,6 +1,9 @@
 // const N: usize = 4;
-#[derive(Debug,Clone,Copy)]
 
+const MAX_POINTS: usize = 11;
+const SPLITS: usize = 2;
+
+#[derive(Debug,Clone,Copy)]
 pub struct Point {
     x: f64,
     y: f64
@@ -11,12 +14,13 @@ impl Point {
         Point{x,y}
     }
 
+    ///Search which subrange point is in a given range, splitted by SPLITS
     pub fn find_subrange(coord: f64, start: f64, end: f64) -> (f64, f64, usize) {
-        let middle =(start+end)/2.0; 
-        if coord <= middle {
-            (start, middle, 0) }
+        let step_size =(start + end)/SPLITS as f64; 
+        if coord <= step_size {
+            (start, step_size, 0) }
         else {
-            (middle, end, 1)
+            (step_size, end, 1)
         }
     }
 
@@ -55,9 +59,9 @@ impl Boundry {
         p.in_area(self.start, self.end)
     }
 
-    pub fn split(&self) -> [Self;AREA_DIMENTION*AREA_DIMENTION]{
-        let step_x = (self.end.x - self.start.x) / AREA_DIMENTION as f64;
-        let step_y = (self.end.y - self.start.y) / AREA_DIMENTION as f64;
+    pub fn split(&self) -> [Self;SPLITS*SPLITS]{
+        let step_x = (self.end.x - self.start.x) / SPLITS as f64;
+        let step_y = (self.end.y - self.start.y) / SPLITS as f64;
         [
             Self::from_coords(self.start.x, self.start.y, self.start.x + step_x, self.start.y + step_y),
             Self::from_coords(self.start.x + step_x, self.start.y, self.end.x, self.start.y + step_y),
@@ -69,7 +73,7 @@ impl Boundry {
     pub fn find_subarea(&self, p: Point) -> (Self, usize){
         let (start_x, end_x, index_x) = Point::find_subrange(p.x, self.start.x, self.end.x);
         let (start_y, end_y, index_y) = Point::find_subrange(p.y, self.start.y, self.end.y);
-        let index = index_y * AREA_DIMENTION + index_x;
+        let index = index_y * SPLITS + index_x;
         (
             Self::from_coords(start_x, start_y, end_x, end_y),
             index
@@ -99,8 +103,7 @@ impl PartialEq for Boundry{
 }
 
 
-const MAX_POINTS: usize = 11;
-const AREA_DIMENTION: usize = 2;
+
 
 
 enum QuadTreeNode<T> {
@@ -173,7 +176,7 @@ impl<T> QuadTreeNode<T>{
                     * self = QuadTreeNode::PointGroup(point_vec);
                 }
                 else {
-                    let mut subareas: Vec<QuadTreeNode<T>> = (0..AREA_DIMENTION*AREA_DIMENTION).map(|_| QuadTreeNode::None).collect();
+                    let mut subareas: Vec<QuadTreeNode<T>> = (0..SPLITS*SPLITS).map(|_| QuadTreeNode::None).collect();
                     for (old_coords, old_data) in point_vec{
                         let (subboundry, index) = boundry.find_subarea(old_coords);
                         subareas[index].append_point(subboundry, old_coords, old_data);
@@ -219,7 +222,7 @@ impl<T> QuadTreeNode<T>{
                 }
             }
             QuadTreeNode::Node(subareas) => {
-                for i in 0..AREA_DIMENTION*AREA_DIMENTION{
+                for i in 0..SPLITS*SPLITS{
                     data.append(&mut subareas[i].all_values());
                 }
             }
@@ -240,7 +243,7 @@ impl<T> QuadTreeNode<T>{
             }
             QuadTreeNode::Node(subareas) => {
                 let own_subareas = own_area.split();
-                for i in 0..AREA_DIMENTION*AREA_DIMENTION{
+                for i in 0..SPLITS*SPLITS{
                     if own_subareas[i].completely_inside(search_area){
                         found.append(&mut subareas[i].all_values());
                     }
@@ -253,10 +256,10 @@ impl<T> QuadTreeNode<T>{
         found
     }
 }
-            
+
 
 #[cfg(test)]
-mod test_quadtree{
+mod test_point{
     use super::*;
 
     #[test]
@@ -265,6 +268,36 @@ mod test_quadtree{
         let two = Point { x: 2.0, y: 1.0 };
         assert_eq!(one, two);
     }
+    #[test]
+    fn find_subrange_most_left(){
+        let range = (0.0, 1.0);
+        let point = 0.0;
+        assert_eq!(Point::find_subrange(point, range.0, range.1), (0.0, 0.5, 0));
+    }
+    #[test]
+    fn find_subrange_most_right(){
+        let range = (0.0, 1.0);
+        let point = 1.0;
+        assert_eq!(Point::find_subrange(point, range.0, range.1), (0.5, 1.0, 1));
+    }
+    #[test]
+    fn find_subrange_mid1(){
+        let range = (0.0, 1.0);
+        let point = 0.25;
+        assert_eq!(Point::find_subrange(point, range.0, range.1), (0.0, 0.5, 0));
+    }
+    #[test]
+    fn find_subrange_mid2(){
+        let range = (0.0, 1.0);
+        let point = 0.75;
+        assert_eq!(Point::find_subrange(point, range.0, range.1), (0.5, 1.0, 1));
+    }
+
+}
+
+#[cfg(test)]
+mod test_quadtree{
+    use super::*;
 
     #[test]
     fn boundry_eq() {
