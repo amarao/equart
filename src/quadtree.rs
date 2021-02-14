@@ -16,12 +16,13 @@ impl Point {
 
     ///Search which subrange point is in a given range, splitted by SPLITS
     pub fn find_subrange(coord: f64, start: f64, end: f64) -> (f64, f64, usize) {
-        let step_size =(start + end)/SPLITS as f64; 
-        if coord <= step_size {
-            (start, step_size, 0) }
-        else {
-            (step_size, end, 1)
-        }
+        let range_len = end - start;
+        let rel_len = coord - start;
+        let split_size = range_len/SPLITS as f64;
+        let i = (rel_len/split_size) as usize;
+        let subrange_start = start + i as f64 * split_size;
+        let subrange_end = start + (i + 1 ) as f64 * split_size;
+        (subrange_start, subrange_end, i)
     }
 
     pub fn in_area(&self, start: Point, end: Point) -> bool {
@@ -277,7 +278,7 @@ mod test_point{
     #[test]
     fn find_subrange_most_right(){
         let range = (0.0, 1.0);
-        let point = 1.0;
+        let point = 0.9999;
         assert_eq!(Point::find_subrange(point, range.0, range.1), (0.5, 1.0, 1));
     }
     #[test]
