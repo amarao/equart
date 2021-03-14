@@ -71,6 +71,18 @@ impl Boundry {
         ]
     }
 
+    /// Split self into SPLITS x SPLITS subareas.
+    pub fn subarea(&self, x_idx: usize, y_idx: usize) -> Boundry{
+        let step_x = (self.end.x - self.start.x) / SPLITS as f64;
+        let step_y = (self.end.y - self.start.y) / SPLITS as f64;
+        Self::from_coords(
+            self.start.x + x_idx as f64 * step_x,
+            self.start.y + y_idx as f64 * step_y,
+            self.start.x + (x_idx + 1) as f64 * step_x,
+            self.start.y + (y_idx + 1) as f64 * step_y,
+        )
+    }
+
     pub fn find_subarea(&self, p: Point) -> (Self, usize){
         let (start_x, end_x, index_x) = Point::find_subrange(p.x, self.start.x, self.end.x);
         let (start_y, end_y, index_y) = Point::find_subrange(p.y, self.start.y, self.end.y);
@@ -241,18 +253,31 @@ impl<T> QuadTreeNode<T>{
                         found.push(&point_vec[i].1);
                     }
                 }
-            }
+            },
             QuadTreeNode::Node(sub_nodes) => {
-                let own_subareas = own_area.split();
-                for i in 0..SPLITS*SPLITS{
-                    if own_subareas[i].completely_inside(search_area){
-                        found.append(&mut sub_nodes[i].all_values());
-                    }
-                    else if own_subareas[i].overlaps(search_area) {
-                        found.append(&mut sub_nodes[i].values_in_area(own_subareas[i], search_area));
+                // let own_subareas = own_area.split();
+                let mut idx = 0;
+                for y in 0..SPLITS{
+                    for x in 0..SPLITS{
+                        let subarea = own_area.subarea(x, y);
+                        if subarea.completely_inside(search_area){
+                            found.append(&mut sub_nodes[idx].all_values());
+                        }
+                        else if subarea.overlaps(search_area){
+                                found.append(&mut sub_nodes[idx].values_in_area(subarea, search_area));
+                            }
+                        }
+                        idx +=1;
                     }
                 }
-            }
+                // for i in 0..SPLITS*SPLITS{
+                //     if own_subareas[i].completely_inside(search_area){
+                //         found.append(&mut sub_nodes[i].all_values());
+                //     }
+                //     else if own_subareas[i].overlaps(search_area) {
+                //         found.append(&mut sub_nodes[i].values_in_area(own_subareas[i], search_area));
+                //     }
+                // }
         }
         found
     }
@@ -279,7 +304,7 @@ mod test_point{
     fn find_subrange_most_right(){
         let range = (0.0, 1.0);
         let point = 0.9999;
-        assert_eq!(Point::find_subrange(point, range.0, range.1), (0.5, 1.0, 1));
+        assert_eq!(Point::find_subrange(point, range.0, range.1), (0.5, 1.0, SPLITS - 1));
     }
     #[test]
     fn find_subrange_mid1(){
@@ -320,6 +345,39 @@ mod test_quadtree{
         );
     }
     
+    #[test]    
+    fn boundry_subarea_0() {
+        let input = Boundry::from_coords(0.0, 0.0, 2.0, 2.0);
+        assert_eq!(
+            input.subarea(0, 0),
+            Boundry::from_coords(0.0, 0.0, 1.0, 1.0)
+        );
+    }
+    #[test]    
+    fn boundry_subarea_1() {
+        let input = Boundry::from_coords(0.0, 0.0, 2.0, 2.0);
+        assert_eq!(
+            input.subarea(1, 0),
+            Boundry::from_coords(1.0, 0.0, 2.0, 1.0)
+        );
+    }
+    #[test]    
+    fn boundry_subarea_2() {
+        let input = Boundry::from_coords(0.0, 0.0, 2.0, 2.0);
+        assert_eq!(
+            input.subarea(0, 1),
+            Boundry::from_coords(0.0, 1.0, 1.0, 2.0)
+        );
+    }
+    #[test]    
+    fn boundry_subarea_3() {
+        let input = Boundry::from_coords(0.0, 0.0, 2.0, 2.0);
+        assert_eq!(
+            input.subarea(1, 1),
+            Boundry::from_coords(1.0, 1.0, 2.0, 2.0)
+        );
+    }
+
     #[test]
     fn find_subarea_0(){
         let area = Boundry::from_coords(0.0, 0.0, 2.0, 2.0);
@@ -556,6 +614,7 @@ mod test_quadtree{
         let search_area = Boundry::from_coords(0.0, 0.0, 0.1, 0.1);
         // we have 11 results because area is inclusive 0.1, 0.1 is match
         // as well as 0.0
+        dbg!(tree.values_in_area(search_area));
         assert_eq!(tree.values_in_area(search_area).len(), 11);
     }
 

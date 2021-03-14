@@ -13,6 +13,7 @@ rand = "*"
 num_cpus = "*"
 gfx_device_gl = "*"
 array2d = "*"
+criterion = "0.3"
 
 [dev-dependencies]
 criterion = "0.3"
