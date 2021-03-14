@@ -1,15 +1,20 @@
 [package]
 name = "equart"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["George Shuklin <george.shuklin@gmail.com>"]
 edition = "2018"
 
+[[bin]]
+name = "equart"
+path = "src/main.rs"
+
+[lib]
+name = "lib"
+path = "src/lib.rs"
+
 [dependencies]
-piston = "*"
-piston_window = "*"
-image = "*"
-vecmath = "*"
-rand = "*"
-num_cpus = "*"
-gfx_device_gl = "*"
-array2d = "*"
+sdl2 = {version="*"}
+bytemuck = "*"
+
+[dev-dependencies]
+criterion = "*"
