@@ -4,9 +4,20 @@ use lib::RelaxedBuffer;
 
 fn draw(buff: RelaxedBuffer){
     let mut c = 0;
+    let mut start = std::time::Instant::now();
+    let  mut last_printed:u64 = 0;
+    let mut frames:u64 = 0;
     loop{
         c+=1;
+        frames += 1;
         buff.fill(c);
+        if start.elapsed() > std::time::Duration::new(1, 0){
+            let dt = start.elapsed().as_secs_f64();
+            let fc = frames - last_printed;
+            last_printed = frames;
+            start = std::time::Instant::now();
+            println!("\ncalc fps: {:.1}\n", fc as f64/dt);
+        }
     }
 }
 fn main() {
@@ -21,7 +32,7 @@ fn main() {
         .unwrap();
     let mut canvas = window
         .into_canvas()
-        // .present_vsync()
+        .present_vsync()
         .accelerated()
         .build()
         .unwrap();
@@ -39,8 +50,12 @@ fn main() {
     let mut event_pump = sdl_context.event_pump().unwrap();
     whole_screen.set_blend_mode(sdl2::render::BlendMode::None);
     let second_screen = screen.clone();
+    let mut start = std::time::Instant::now();
+    let  mut last_printed:u64 = 0;
+    let mut frames:u64 = 0;
     std::thread::spawn(move ||draw(second_screen));
     loop {
+            frames +=1;
             whole_screen.with_lock(
                 None,
                 |bytearray, _|{
@@ -58,6 +73,13 @@ fn main() {
                 } => std::process::exit(0),
                 _ => {}
             }
+        }
+        if start.elapsed() > std::time::Duration::new(1, 0){
+            let dt = start.elapsed().as_secs_f64();
+            let fc = frames - last_printed;
+            last_printed = frames;
+            start = std::time::Instant::now();
+            println!("\ndraw fps: {:.1}\n", fc as f64/dt);
         }
     }
 }
