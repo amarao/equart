@@ -1,7 +1,14 @@
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use lib::*;
+use lib::RelaxedBuffer;
 
+fn draw(buff: RelaxedBuffer){
+    let mut c = 0;
+    loop{
+        c+=1;
+        buff.fill(c);
+    }
+}
 fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -14,13 +21,13 @@ fn main() {
         .unwrap();
     let mut canvas = window
         .into_canvas()
-        .present_vsync()
+        // .present_vsync()
         .accelerated()
         .build()
         .unwrap();
     sdl_context.mouse().show_cursor(false);
     let (width, height) = canvas.output_size().unwrap();
-    let mut screen = Screen::new(width, height).unwrap();
+    let mut screen = RelaxedBuffer::new(width, height, 0);
     let texture_creator = canvas.texture_creator();
     let mut whole_screen = texture_creator
         .create_texture_streaming(
@@ -31,20 +38,13 @@ fn main() {
         .unwrap();
     let mut event_pump = sdl_context.event_pump().unwrap();
     whole_screen.set_blend_mode(sdl2::render::BlendMode::None);
-    let mut cnt = 0;
-    'running: loop {
-        cnt += 1;
-
-            
-            screen.fill(cnt);
+    let second_screen = screen.clone();
+    std::thread::spawn(move ||draw(second_screen));
+    loop {
             whole_screen.with_lock(
                 None,
                 |bytearray, _|{
-                    screen.copy_to_buffer(bytearray).unwrap();
-                    // for b in bytearray{
-                    //     *b = cnt as u8;
-                    // }
-                    // println!("cnt: {}, {}", cnt, screen.test());
+                    screen.copy_into_slice(bytearray);
                 }
             ).unwrap();
         canvas.copy(&whole_screen, None, None).unwrap();
@@ -55,7 +55,7 @@ fn main() {
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => break 'running,
+                } => std::process::exit(0),
                 _ => {}
             }
         }
