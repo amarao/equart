@@ -2,6 +2,7 @@ use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct RelaxedBuffer {
     data:  Arc<[AtomicU32]>,
     width: u32,
@@ -11,7 +12,7 @@ impl RelaxedBuffer{
     pub fn new(width: u32, height:u32, init_value: u32) -> Self {
         let size = width.checked_mul(height).unwrap() as usize;
         if size == 0{
-            panic!("size should be > 0");
+            panic!("width and height should be > 0");
         }
         let mut vec = Vec::with_capacity(size);
         vec.resize_with(size, || AtomicU32::new(init_value));
@@ -42,14 +43,5 @@ impl RelaxedBuffer{
                     *target_u32.get_unchecked_mut(idx) = self.data.get_unchecked(idx).load(Relaxed);
                 }
             }
-    }
-}
-impl Clone for RelaxedBuffer{
-    fn clone(&self) -> Self{
-        RelaxedBuffer {
-            data: self.data.clone(),
-            width: self.width,
-            height: self.height,
-        }
     }
 }

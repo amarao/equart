@@ -38,7 +38,7 @@ fn main() {
         .unwrap();
     sdl_context.mouse().show_cursor(false);
     let (width, height) = canvas.output_size().unwrap();
-    let mut screen = RelaxedBuffer::new(width, height, 0);
+    let screen = RelaxedBuffer::new(width, height, 0);
     let texture_creator = canvas.texture_creator();
     let mut whole_screen = texture_creator
         .create_texture_streaming(
