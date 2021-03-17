@@ -124,4 +124,22 @@ impl EasyScreen{
     pub fn fill(&self, color: u32){
         self.buff.fill(color);
     }
+
+    pub fn width(&self)->u32 {self.width}
+    pub fn height(&self)->u32 {self.height}
+
+    /// Put pixel with coodinates wrapping,
+    /// inverse location of (0,0) to be at
+    /// lowest left corner.
+    pub fn put_pixel(&self, x: u32, y: u32, color: u32){
+        let true_x = x % self.width;
+        let true_y = y % self.height;
+        let inv_y = self.height - true_y - 1;
+        let offset = (inv_y * self.width + true_x) as usize;
+        self.buff.set(offset, color);
+    }
+
+    pub fn wait(&self){
+        loop{};
+    }
 }
