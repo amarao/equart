@@ -35,9 +35,16 @@ fn draw(screen: &EasyScreen){
 }
 
 fn main(){
-    let screen = EasyScreen::new();
-    screen.fill(0xFFFFFFFF);
-    draw(&screen);
-    screen.wait();
-}
+    // let screen = EasyScreen::new();
+    // screen.fill(0xFFFFFFFF);
+    // draw(&screen);
+    // screen.wait();
 
+let screen = EasyScreen::new();
+  screen.fill(0xFFFFFFFF);
+  let mut c = 0;
+  loop {
+     screen.put_pixel(c/3, c/256/11, c); // x, y and color
+     c+=1;
+  }
+}
