@@ -1,4 +1,3 @@
-use sdl2::render::Canvas;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 use std::sync::Arc;
 use sdl2::event::Event;
