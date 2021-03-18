@@ -1,7 +1,7 @@
 use lib::EasyScreen;
 
 fn equation(x: f64, y:f64) -> f64{
-    (((x.sin()-y).cos()-x).sin()-y).cos()/(x*y).sin()
+    ((((x.sin()-y).cos()-x).sin()-y).cos()/(x*y).sin()/(x.abs().ln()*(y*y).sin())).ln()
 }
 
 fn is_root(x: f64, y: f64, dx:f64, dy:f64) -> bool{
@@ -15,11 +15,11 @@ fn is_root(x: f64, y: f64, dx:f64, dy:f64) -> bool{
 }
 
 fn draw(screen: &EasyScreen){
-    let factor = 20.0;
-    let x_start = -factor*2.56;
-    let y_start = -factor*1.44;
-    let x_end = factor*2.56;
-    let y_end = factor*1.44;
+    let factor = 16.0;
+    let x_start = 8.0;//-factor*2.56;
+    let y_start = 8.0;//-factor*1.44;
+    let x_end = 1.5*factor*2.56;
+    let y_end = 1.5*factor*1.44;
     let dx = (x_end-x_start)/screen.width() as f64;
     let dy = (y_end-y_start)/screen.height() as f64;
     for y in 0..screen.height(){
