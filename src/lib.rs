@@ -3,8 +3,6 @@ use std::sync::Arc;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
-mod quadtree;
-pub use crate::quadtree::QuadTree;
 
 
 #[derive(Clone)]

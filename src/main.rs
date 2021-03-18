@@ -1,4 +1,7 @@
 use lib::EasyScreen;
+mod quadtree;
+pub use crate::quadtree::{QuadTree, Point};
+
 
 fn equation(x: f64, y:f64) -> f64{
     ((((x.sin()-y).cos()-x).sin()-y).cos()/(x*y).sin()/(x.abs().ln()*(y*y).sin())).ln()
@@ -20,6 +23,8 @@ fn draw(screen: &EasyScreen){
     let y_start = 8.0;//-factor*1.44;
     let x_end = 1.5*factor*2.56;
     let y_end = 1.5*factor*1.44;
+    let mut q = QuadTree::from_coords(x_start, y_start, x_end, y_end);
+    q.append_point(Point::new(9.0, 9.0), 0u32).unwrap();
     let dx = (x_end-x_start)/screen.width() as f64;
     let dy = (y_end-y_start)/screen.height() as f64;
     for y in 0..screen.height(){
@@ -31,20 +36,12 @@ fn draw(screen: &EasyScreen){
             }
         }
     }
-    loop{}
+    std::thread::park();
 }
 
 fn main(){
-    // let screen = EasyScreen::new();
-    // screen.fill(0xFFFFFFFF);
-    // draw(&screen);
-    // screen.wait();
-
-let screen = EasyScreen::new();
-  screen.fill(0xFFFFFFFF);
-  let mut c = 0;
-  loop {
-     screen.put_pixel(c/3, c/256/11, c); // x, y and color
-     c+=1;
-  }
+    let screen = EasyScreen::new();
+    screen.fill(0xFFFFFFFF);
+    draw(&screen);
+    screen.wait();
 }

@@ -123,6 +123,10 @@ impl<T> QuadTree<T>{
     pub fn new(boundry: Boundry) -> Self{
         QuadTree{boundry, node: QuadTreeNode::None}
     }
+    
+    pub fn from_coords(start_x: f64, start_y: f64, end_x: f64, end_y: f64) -> Self{
+        QuadTree::new(Boundry::from_coords(start_x, start_y, end_x, end_y))
+    }
 
     pub fn contains(&self, p: Point) -> bool{
         self.boundry.contains(p)
@@ -148,17 +152,22 @@ impl<T> QuadTree<T>{
         self.node.values_in_area(self.boundry, search_area)
     }
 
-    /// Rebuild QuadTree into a new QuadTree with a new boundry.
-    pub fn rebuild(self, new_boundry: Boundry) -> (Self, Vec<(Point, T)>) {
+    /// Merge other tree inside self
+    pub fn merge(&mut self, other: Self) -> Vec<(Point, T)>{
         let mut out_of_tree = Vec::new();
-        let mut new_qt = QuadTree::new(new_boundry);
-        for (point, data) in self.node{
-            if new_boundry.contains(point){
-                new_qt.append_point(point, data).unwrap();
+        for (point, data) in other.node{
+            if self.boundry.contains(point){
+                self.append_point(point, data).unwrap();
             }else{
                 out_of_tree.push((point, data));
             }
         }
+        out_of_tree
+    }
+    /// Rebuild QuadTree into a new QuadTree with a new boundry.
+    pub fn rebuild(self, new_boundry: Boundry) -> (Self, Vec<(Point, T)>) {
+        let mut new_qt = QuadTree::new(new_boundry);
+        let out_of_tree = new_qt.merge(self);
         (new_qt, out_of_tree)
     }
 }
@@ -279,7 +288,7 @@ impl<T> Iterator for QuadTreeNode<T>{
                 while let Some(mut subtree) = subareas.pop(){
                     let candidate = subtree.next();
                     if candidate.is_some(){
-                        subareas.push(subtree);
+                        subareas.push(subtree); //Store back for next iteration if not empty
                         return candidate;
                     }
                 };
