@@ -149,12 +149,17 @@ impl<T> QuadTree<T>{
     }
 
     /// Rebuild QuadTree into a new QuadTree with a new boundry.
-    fn rebuild(self, new_boundry: Boundry) -> Self {
+    pub fn rebuild(self, new_boundry: Boundry) -> (Self, Vec<(Point, T)>) {
+        let mut out_of_tree = Vec::new();
         let mut new_qt = QuadTree::new(new_boundry);
         for (point, data) in self.node{
-            new_qt.append_point(point, data);
+            if new_boundry.contains(point){
+                new_qt.append_point(point, data).unwrap();
+            }else{
+                out_of_tree.push((point, data));
+            }
         }
-        new_qt
+        (new_qt, out_of_tree)
     }
 }
 
@@ -650,7 +655,8 @@ mod test_quadtree{
         let boundry = Boundry::from_coords(-1.0, -1.0, 1.0, 1.0);
         let q: QuadTree<u32> = QuadTree::new(boundry);
         let q2 = q.rebuild(boundry);
-        assert!(q2.values_in_area(boundry).is_empty());
+        assert!(q2.0.values_in_area(boundry).is_empty());
+        assert!(q2.1.is_empty());
     }
 
     #[test]
@@ -661,10 +667,11 @@ mod test_quadtree{
         q.append_point(Point::new(0.5, 0.5), 24).unwrap();
         let q2 = q.rebuild(boundry);
         let mut res = Vec::new();
-        for v in q2.values_in_area(boundry){
+        for v in q2.0.values_in_area(boundry){
             res.push(*v);
         }
         assert_eq!(res.sort_unstable(), vec![24,42].sort_unstable());
+        assert!(q2.1.is_empty());
     }
 
     #[test]
@@ -678,11 +685,44 @@ mod test_quadtree{
         }
         let q2 = q.rebuild(boundry);
         let mut res = Vec::new();
-        for v in q2.values_in_area(boundry){
+        for v in q2.0.values_in_area(boundry){
             res.push(*v);
         }
         
         assert_eq!(res.sort_unstable(), should_be.sort_unstable());
+        assert!(q2.1.is_empty());
+        
+    }
+
+    #[test]
+    fn test_rebuild_non_overlapped(){
+        let boundry1 = Boundry::from_coords(0.0, 0.0, 1.0, 1.0);
+        let boundry2 = Boundry::from_coords(10.0, 10.0, 11.0, 11.0);
+        let mut q = QuadTree::new(boundry1);
+        let mut should_be = Vec::new();
+        for c in 1..42{
+            q.append_point(Point::new(1.0/c as f64, 1.0/c as f64), c).unwrap();
+            should_be.push(c);
+        }
+        let q2 = q.rebuild(boundry2);
+        assert!(q2.0.values_in_area(boundry2).is_empty());
+        assert_eq!(q2.1.len(), should_be.len());
+    }
+
+
+    #[test]
+    fn test_rebuild_partial(){
+        let boundry1 = Boundry::from_coords(0.0, 0.0, 100.0, 100.0);
+        let boundry2 = Boundry::from_coords(0.0, 0.0, 50.0, 50.0);
+        let mut q = QuadTree::new(boundry1);
+        let mut should_be = Vec::new();
+        for c in 0..100{
+            q.append_point(Point::new(c as f64, c as f64), c).unwrap();
+            should_be.push(c);
+        }
+        let q2 = q.rebuild(boundry2);
+        assert_eq!(q2.0.values_in_area(boundry2).len(), 51);
+        assert_eq!(q2.1.len(), 49);
     }
 
 }
