@@ -1,7 +1,82 @@
 use lib::EasyScreen;
 mod quadtree;
 pub use crate::quadtree::{QuadTree, Point};
+use std::num::FpCategory::*;
 
+#[derive (PartialEq)]
+enum FixelState{
+    NoProbes,
+    NoDomain,
+    NoRoot,
+    ExactRoot,
+    SignChangeRoot
+}
+
+struct Fixel{
+    center: Point,
+    probes: Vec<(Point, f64)>,
+    state: FixelState,
+    max: Option<f64>,
+    min: Option<f64>,
+}
+
+impl Fixel{
+    fn new(center: Point) -> Self{
+        Fixel{
+            center,
+            probes: Vec::with_capacity(4),
+            state: FixelState::NoProbes,
+            max: None,
+            min: None
+        }
+    }
+    fn already_present(&self, new_point: Point) -> bool{
+        for probe in self.probes.iter(){
+            if probe.0 == new_point{
+                return true
+            }
+        }
+        false
+    }
+
+    fn update_cache(&mut self){
+        if self.state == FixelState::ExactRoot || self.state == FixelState::NoDomain{
+            return;
+        }
+        for probe in self.probes.iter(){
+            match probe.1.classify(){
+                Nan | Infinite => {
+                    self.state = FixelState::NoDomain;
+                    return;
+                },
+                Zero => {
+                    self.state = FixelState::ExactRoot;
+                    return;
+                },
+                _ => {}
+            }
+            
+        }
+    }
+    fn gen_positions(&self, samples: usize) -> Vec<Point>{
+        vec![Point::new(0.0, 0.0)]
+    }
+
+    fn do_probes<F>(&mut self, samples: usize, f: F)
+    where F: Fn(Point) -> f64{
+        if self.probes.len() >= samples || self.state == FixelState::ExactRoot || self.state == FixelState::SignChangeRoot{
+            return 
+        }
+        let mut new_points = false;
+        for point in self.gen_positions(samples){
+            if !self.already_present(point){
+                self.probes.push((point, f(point)));
+                new_points = true;
+            }
+        }
+        self.update_cache();
+    }
+}
 
 fn equation(x: f64, y:f64) -> f64{
     ((((x.sin()-y).cos()-x).sin()-y).cos()/(x*y).sin()/(x.abs().ln()*(y*y).sin())).ln()
