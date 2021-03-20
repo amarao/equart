@@ -2,8 +2,8 @@ const MAX_POINTS: usize = 11;
 
 #[derive(Debug,Clone,Copy)]
 pub struct Point {
-    x: f64,
-    y: f64
+    pub x: f64,
+    pub y: f64
 }
 
 impl Point {

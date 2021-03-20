@@ -2,8 +2,9 @@ use lib::EasyScreen;
 mod quadtree;
 pub use crate::quadtree::{QuadTree, Point};
 use std::num::FpCategory;
+use rand::Rng;
 
-#[derive (PartialEq)]
+#[derive (PartialEq, Debug)]
 enum FixelState{
     NoProbes,
     NoDomain,
@@ -12,10 +13,13 @@ enum FixelState{
     SignChangeRoot
 }
 
+#[derive (Debug)]
 struct Fixel{
     center: Point,
     dx: f64,
     dy: f64,
+    screen_x: u32,
+    screen_y: u32,
     probes: Vec<(Point, f64)>,
     state: FixelState,
     max: Option<f64>,
@@ -23,11 +27,13 @@ struct Fixel{
 }
 
 impl Fixel{
-    fn new(center: Point, dx: f64, dy: f64) -> Self{
+    fn new(center: Point,screen_x: u32, screen_y: u32, dx: f64, dy: f64) -> Self{
         Fixel{
             center,
             dx,
             dy,
+            screen_x,
+            screen_y,
             probes: Vec::with_capacity(4),
             state: FixelState::NoProbes,
             max: None,
@@ -43,19 +49,20 @@ impl Fixel{
         false
     }
 
-    fn update_cache(&mut self){
+    fn update_cache(&mut self) -> bool{
         if self.state == FixelState::ExactRoot || self.state == FixelState::NoDomain{
-            return;
+            return false;
         }
         for probe in self.probes.iter(){
             match probe.1.classify(){
                 FpCategory::Nan | FpCategory::Infinite => {
                     self.state = FixelState::NoDomain;
-                    return;
+                    return true;
                 },
                 FpCategory::Zero => {
+                    println!("Exact root!");
                     self.state = FixelState::ExactRoot;
-                    return;
+                    return true;
                 },
                 _ => {}
             }
@@ -64,75 +71,122 @@ impl Fixel{
         }
         if self.max.is_some() && self.min.is_some() && self.max.unwrap() > 0.0 && self.min.unwrap() < 0.0 {
             self.state = FixelState::SignChangeRoot;
+            return true
         }
+        if self.state == FixelState::NoProbes{
+            self.state = FixelState::NoRoot;
+        }
+        return false
     }
-    fn gen_positions(&self, samples: usize) -> Vec<Point>{
+    fn gen_positions(&self, samples: usize, rng: &mut rand::rngs::ThreadRng) -> Vec<Point>{
         let mut positions = Vec::with_capacity(samples);
-        let side = (samples as f64).sqrt().ceil() as usize;
-        let x_step = self.dx/side as f64;
-        let y_step = self.dy/side as f64;
-        let start_x = self.center.x - self.dx/2.0;
-        let start_y = self.center.y - self.dy/2.0;
-        for x_cnt in 0..side{
-            for y_cnt in 0..side{
-                let point = Point::new(
-                    start_x + x_step * x_cnt as f64,
-                    start_y + y_step * y_cnt as f64,
+        for i in 0..samples{
+                positions.push(
+                    Point::new(
+                        rng.gen_range(self.center.x - self.dx/2.0..=self.center.x + self.dx/2.0),
+                        rng.gen_range(self.center.y - self.dy/2.0..=self.center.y + self.dy/2.0),
+                    )
                 );
-                positions.push(point);
-            }
         }
-        vec![Point::new(0.0, 0.0)]
+        positions
     }
 
     /// Assure there is a least a 'samples' number of probes, if they are
     /// needed.
-    fn do_probes<F>(&mut self, samples: usize, f: F)
+    fn do_probes<F>(&mut self, samples: usize, f: F, rng: &mut rand::rngs::ThreadRng) -> bool
     where F: Fn(Point) -> f64{
         if self.probes.len() >= samples || self.state == FixelState::ExactRoot || self.state == FixelState::SignChangeRoot{
-            return 
+            return false
         }
-        for point in self.gen_positions(samples){
+        for point in self.gen_positions(samples, rng){
             if !self.already_present(point){
                 self.probes.push((point, f(point)));
             }
         }
-        self.update_cache();
+        self.update_cache()
+    }
+
+    fn color(&self) -> u32{
+        match self.state {
+            FixelState::ExactRoot| FixelState::SignChangeRoot => {
+                0xFF000000
+            },
+            FixelState::NoProbes => {0x70707070},
+            FixelState::NoRoot => {0xFFFFFFFF},
+            FixelState::NoDomain => {0xBBBBBBBB}
+        }
     }
 }
 
-fn equation(x: f64, y:f64) -> f64{
-    x.sin()*(y*3.0).sin()-x.sin()-y.sin()
+#[derive (Debug)]
+struct FixelArray{
+    fixels: Vec<Fixel>,
+    width: u32,
+    height: u32,
+    window_start: Point,
+    window_end: Point,
 }
 
-fn is_root(x: f64, y: f64, dx:f64, dy:f64) -> bool{
-    let mut pos = 0;
-    let mut neg = 0;
-    if equation(x, y) > 0.0 {pos +=1} else {neg += 1};
-    if equation(x+dx, y) > 0.0 {pos +=1} else {neg += 1};
-    if equation(x, y+dy) > 0.0 {pos +=1} else {neg += 1};
-    if equation(x+dx, y+dy) > 0.0 {pos +=1} else {neg += 1};
-    (pos > 0) & (neg > 0)
-}
-
-fn draw(screen: &EasyScreen){
-    let factor = 16.0;
-    let x_start = 8.0;//-factor*2.56;
-    let y_start = 8.0;//-factor*1.44;
-    let x_end = 1.5*factor*2.56;
-    let y_end = 1.5*factor*1.44;
-    let mut q = QuadTree::from_coords(x_start, y_start, x_end, y_end);
-    q.append_point(Point::new(9.0, 9.0), 0u32).unwrap();
-    let dx = (x_end-x_start)/screen.width() as f64;
-    let dy = (y_end-y_start)/screen.height() as f64;
-    for y in 0..screen.height(){
-        let real_y = y_start + dy*y as f64;
-        for x in 0..screen.width(){
-            let real_x = x_start + dx*x as f64;
-            if is_root(real_x,real_y, dx, dy){
-                screen.put_pixel(x, y, 0);
+impl FixelArray{
+    fn new(width: u32, height:u32, window_start:Point, window_end: Point) -> Self{
+        let dx = (window_end.x - window_start.x)/width as f64;
+        let dy = (window_end.y - window_start.y)/height as f64;
+        let mut fixels = Vec::with_capacity((width*height) as usize);
+        for cnt_y in 0..height{
+            for cnt_x in 0..width{
+                fixels.push(
+                    Fixel::new(
+                        Point::new(
+                            window_start.x + dx*cnt_x as f64 + dx/2.0,
+                            window_start.y + dy*cnt_y as f64 + dy/2.0,
+                        ),
+                        cnt_x,
+                        cnt_y,
+                        dx,
+                        dy
+                    )
+                );
             }
         }
+        FixelArray{
+            fixels,
+            width,
+            height,
+            window_start,
+            window_end
+        }
+    }
+
+    fn do_probes<F>(&mut self, samples: usize, f: F, screen: &EasyScreen, rng: &mut rand::rngs::ThreadRng)
+    where F: Fn(Point) -> f64{
+        for fixel in self.fixels.iter_mut(){
+            if fixel.do_probes(samples, &f, rng){
+                screen.put_pixel(fixel.screen_x, fixel.screen_y, fixel.color());
+            }
+        }
+    }
+}
+
+fn equation(p: Point) -> f64{
+    // dbg!(p);
+    p.x.sin() - p.y
+}
+
+
+
+fn draw(screen: &EasyScreen){
+    let mut fixels = FixelArray::new(
+        screen.width(),
+        screen.height(),
+        Point::new(-2.0, -2.0),
+        Point::new(2.0, 2.0)
+    );
+    let mut rng = rand::thread_rng();
+    let mut c = 3;
+    loop{
+        c+=2;
+        println!("Doing probes with depth {}", c);
+        fixels.do_probes(c, equation, screen, &mut rng);
     }
     std::thread::park();
 }

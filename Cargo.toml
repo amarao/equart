@@ -15,6 +15,7 @@ path = "src/lib.rs"
 [dependencies]
 sdl2 = {version="*"}
 bytemuck = "*"
+rand = "*"
 
 [dev-dependencies]
 criterion = "*"
